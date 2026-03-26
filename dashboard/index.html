@@ -752,12 +752,16 @@ function headers() {
   return h;
 }
 
+function readHeaders() {
+  return { 'Content-Type': 'application/json' };
+}
+
 async function ping(url, dotId, latencyId, urlId) {
   document.getElementById(urlId).textContent = url.replace('https://', '').replace('http://', '').split('/')[0];
   document.getElementById(dotId).className = 'service-dot checking';
   const t0 = performance.now();
   try {
-    const r = await fetch(`${url}/api/orders/status`, { headers: headers(), signal: AbortSignal.timeout(5000) });
+    const r = await fetch(`${url}/api/orders/status`, { headers: readHeaders(), signal: AbortSignal.timeout(5000) });
     const ms = Math.round(performance.now() - t0);
     document.getElementById(dotId).className = r.ok ? 'service-dot up' : 'service-dot down';
     document.getElementById(latencyId).textContent = `${ms}ms`;
@@ -951,9 +955,9 @@ async function refresh() {
 
   try {
     const [statusRes, logRes, optsRes] = await Promise.all([
-      fetch(`${cfg.ordersUrl}/api/orders/status`, { headers: headers() }),
-      fetch(`${cfg.ordersUrl}/api/orders/log`,    { headers: headers() }),
-      fetch(`${cfg.ordersUrl}/api/options/status`, { headers: headers() }),
+      fetch(`${cfg.ordersUrl}/api/orders/status`, { headers: readHeaders() }),
+      fetch(`${cfg.ordersUrl}/api/orders/log`,    { headers: readHeaders() }),
+      fetch(`${cfg.ordersUrl}/api/options/status`, { headers: readHeaders() }),
     ]);
 
     const status = statusRes.ok ? await statusRes.json() : null;
