@@ -18,15 +18,16 @@ app.get('/dashboard', (req, res) =>
   res.sendFile(path.resolve(__dirname, 'dashboard', 'index.html'))
 );
 
-app.use('/api', (req, res, next) => {
+function requireKey(req, res, next) {
   if (req.headers['x-api-key'] !== process.env.API_KEY) {
     return res.status(401).json({ error: 'unauthorized' });
   }
   next();
-});
+}
 
-app.use('/api/orders',  require('./routes/orders'));
-app.use('/api/options', require('./routes/options'));
+app.use('/api/orders',  requireKey, require('./routes/orders'));
+app.use('/api/options', requireKey, require('./routes/options'));
+app.use('/api/gex',     requireKey, require('./routes/gex'));
 
 app.get('/', (req, res) => res.json({ status: 'signal-orders running' }));
 
