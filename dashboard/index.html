@@ -610,7 +610,7 @@
     <div class="card">
       <div class="card-header">
         <span class="card-title">Watchlist</span>
-        <span style="font-family: var(--mono); font-size: 10px; color: var(--text3);">16 tickers</span>
+        <span style="font-family: var(--mono); font-size: 10px; color: var(--text3);">18 tickers</span>
       </div>
       <div class="card-body" id="watchlist-body">
         <div class="empty">Loading...</div>
@@ -752,16 +752,12 @@ function headers() {
   return h;
 }
 
-function readHeaders() {
-  return { 'Content-Type': 'application/json' };
-}
-
 async function ping(url, dotId, latencyId, urlId) {
   document.getElementById(urlId).textContent = url.replace('https://', '').replace('http://', '').split('/')[0];
   document.getElementById(dotId).className = 'service-dot checking';
   const t0 = performance.now();
   try {
-    const r = await fetch(`${url}/api/orders/status`, { headers: readHeaders(), signal: AbortSignal.timeout(5000) });
+    const r = await fetch(`${url}/api/orders/status`, { headers: headers(), signal: AbortSignal.timeout(5000) });
     const ms = Math.round(performance.now() - t0);
     document.getElementById(dotId).className = r.ok ? 'service-dot up' : 'service-dot down';
     document.getElementById(latencyId).textContent = `${ms}ms`;
@@ -786,7 +782,7 @@ function scoreColor(s) {
 }
 
 function renderWatchlist(decisions) {
-  const tickers = ['RMBS', 'VICR', 'ATOM', 'POET', 'NVDA', 'AMD', 'AAPL', 'MSFT', 'AVGO', 'MU', 'SPY', 'QQQ', 'IWM', 'META', 'TSLA', 'GOOGL'];
+  const tickers = ['AAPL', 'NVDA', 'TSLA', 'META', 'AMD', 'PLTR', 'MSTR', 'SPY', 'VICR', 'GFS', 'ATOM', 'RMBS', 'AAOI', 'RDW', 'EOSE', 'NB', 'MU', 'MRVL'];
   const latest = {};
   for (const d of (decisions || [])) {
     if (!latest[d.ticker] || d.ts > latest[d.ticker].ts) latest[d.ticker] = d;
@@ -955,9 +951,9 @@ async function refresh() {
 
   try {
     const [statusRes, logRes, optsRes] = await Promise.all([
-      fetch(`${cfg.ordersUrl}/api/orders/status`, { headers: readHeaders() }),
-      fetch(`${cfg.ordersUrl}/api/orders/log`,    { headers: readHeaders() }),
-      fetch(`${cfg.ordersUrl}/api/options/status`, { headers: readHeaders() }),
+      fetch(`${cfg.ordersUrl}/api/orders/status`, { headers: headers() }),
+      fetch(`${cfg.ordersUrl}/api/orders/log`,    { headers: headers() }),
+      fetch(`${cfg.ordersUrl}/api/options/status`, { headers: headers() }),
     ]);
 
     const status = statusRes.ok ? await statusRes.json() : null;
