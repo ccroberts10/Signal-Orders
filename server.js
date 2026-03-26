@@ -14,7 +14,8 @@ app.use('/api', (req, res, next) => {
 
 app.use('/api/orders',  require('./routes/orders'));
 app.use('/api/options', require('./routes/options'));
-app.use('/dashboard',   express.static(path.join(__dirname, 'dashboard')));
+app.use('/dashboard',   express.static(path.resolve(__dirname, 'dashboard')));
+app.get('/dashboard',   (req, res) => res.sendFile(path.resolve(__dirname, 'dashboard', 'index.html')));
 
 app.get('/', (req, res) => res.json({ status: 'signal-orders running' }));
 
