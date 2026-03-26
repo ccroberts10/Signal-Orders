@@ -1,11 +1,10 @@
 require('dotenv').config();
 const express = require('express');
-const path    = require('path');
-const app     = express();
+const path = require('path');
+const app = express();
 
 app.use(express.json());
 
-// Basic auth for dashboard
 function basicAuth(req, res, next) {
   const auth = req.headers['authorization'];
   if (!auth || !auth.startsWith('Basic ')) {
@@ -24,7 +23,6 @@ function basicAuth(req, res, next) {
 app.use('/dashboard', basicAuth, express.static(path.resolve(__dirname, 'dashboard')));
 app.get('/dashboard', basicAuth, (req, res) => res.sendFile(path.resolve(__dirname, 'dashboard', 'index.html')));
 
-// API routes protected by API key
 app.use('/api', (req, res, next) => {
   if (req.headers['x-api-key'] !== process.env.API_KEY) {
     return res.status(401).json({ error: 'unauthorized' });
@@ -32,11 +30,10 @@ app.use('/api', (req, res, next) => {
   next();
 });
 
-app.use('/api/orders',  require('./routes/orders'));
+app.use('/api/orders', require('./routes/orders'));
 app.use('/api/options', require('./routes/options'));
 
 app.get('/', (req, res) => res.json({ status: 'signal-orders running' }));
 
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => console.log(`signal-orders on :${PORT}`));
-```
