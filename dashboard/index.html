@@ -610,7 +610,9 @@
     <div class="card">
       <div class="card-header">
         <span class="card-title">Watchlist</span>
-        <span style="font-family: var(--mono); font-size: 10px; color: var(--text3);">RMBS · VICR · ATOM · POET</span>
+        <span style="font-family: var(--mono); font-size: 10px; color: var(--text3);">16 tickers</span>
+
+
       </div>
       <div class="card-body" id="watchlist-body">
         <div class="empty">Loading...</div>
@@ -782,7 +784,17 @@ function scoreColor(s) {
 }
 
 function renderWatchlist(decisions) {
-  const tickers = ['RMBS', 'VICR', 'ATOM', 'POET'];
+  cconst tickers = ['RMBS', 'VICR', 'ATOM', 'POET', 'NVDA', 'AMD', 'AAPL', 'MSFT', 'AVGO', 'MU', 'SPY', 'QQQ', 'IWM', 'META', 'TSLA', 'GOOGL'];
+```
+
+6. Also find this line near the top of the file:
+```
+<span style="font-family: var(--mono); font-size: 10px; color: var(--text3);">RMBS · VICR · ATOM · POET</span>
+```
+
+7. Replace it with:
+```
+<span style="font-family: var(--mono); font-size: 10px; color: var(--text3);">16 tickers</span>
   const latest = {};
   for (const d of (decisions || [])) {
     if (!latest[d.ticker] || d.ts > latest[d.ticker].ts) latest[d.ticker] = d;
