@@ -782,7 +782,7 @@ function scoreColor(s) {
 }
 
 function renderWatchlist(decisions) {
-  const tickers = ['AAPL', 'NVDA', 'TSLA', 'META', 'AMD', 'PLTR', 'MSTR', 'SPY', 'VICR', 'GFS', 'ATOM', 'RMBS', 'AAOI', 'RDW', 'EOSE', 'NB', 'MU', 'MRVL'];
+  const tickers = ['AAPL', 'NVDA', 'TSLA', 'META', 'AMD', 'PLTR', 'MSTR', 'SPY', 'QQQ', 'MSFT', 'GOOGL', 'AMZN', 'VICR', 'RMBS', 'ATOM', 'MU', 'MRVL', 'GFS'];
   const latest = {};
   for (const d of (decisions || [])) {
     if (!latest[d.ticker] || d.ts > latest[d.ticker].ts) latest[d.ticker] = d;
