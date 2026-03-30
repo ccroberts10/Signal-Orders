@@ -610,7 +610,7 @@
     <div class="card">
       <div class="card-header">
         <span class="card-title">Watchlist</span>
-        <span style="font-family: var(--mono); font-size: 10px; color: var(--text3);">19 tickers</span>
+        <span style="font-family: var(--mono); font-size: 10px; color: var(--text3);">20 tickers</span>
       </div>
       <div class="card-body" id="watchlist-body">
         <div class="empty">Loading...</div>
@@ -782,7 +782,7 @@ function scoreColor(s) {
 }
 
 function renderWatchlist(decisions) {
-  const tickers = ['AAPL', 'NVDA', 'TSLA', 'META', 'AMD', 'PLTR', 'MSTR', 'SPY', 'QQQ', 'MSFT', 'GOOGL', 'AMZN', 'VICR', 'RMBS', 'ATOM', 'MU', 'MRVL', 'POET', 'AAOI'];
+  const tickers = ['AAPL', 'NVDA', 'TSLA', 'META', 'AMD', 'PLTR', 'MSTR', 'SPY', 'QQQ', 'MSFT', 'GOOGL', 'AMZN', 'VICR', 'RMBS', 'ATOM', 'MU', 'MRVL', 'POET', 'AAOI', 'METC'];
   const latest = {};
   for (const d of (decisions || [])) {
     if (!latest[d.ticker] || d.ts > latest[d.ticker].ts) latest[d.ticker] = d;
