@@ -37,6 +37,7 @@
     padding: 0;
   }
 
+  /* ── Header ── */
   header {
     display: flex;
     align-items: center;
@@ -112,6 +113,7 @@
   }
   .refresh-btn:hover { color: var(--text); border-color: rgba(255,255,255,0.25); }
 
+  /* ── Layout ── */
   main {
     padding: 24px 28px;
     max-width: 1400px;
@@ -139,6 +141,7 @@
     background: var(--border);
   }
 
+  /* ── Metric cards ── */
   .metrics-row {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
@@ -182,6 +185,7 @@
     margin-top: 4px;
   }
 
+  /* ── Two-col layout ── */
   .two-col {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -193,6 +197,7 @@
     .two-col { grid-template-columns: 1fr; }
   }
 
+  /* ── Cards ── */
   .card {
     background: var(--bg2);
     border: 1px solid var(--border);
@@ -218,6 +223,7 @@
 
   .card-body { padding: 16px; }
 
+  /* ── Ticker rows ── */
   .ticker-row {
     display: flex;
     align-items: center;
@@ -277,6 +283,7 @@
   .action-badge.CC { border-color: rgba(245,158,11,0.3); color: var(--warn); background: rgba(245,158,11,0.07); }
   .action-badge.SKIP { border-color: var(--border); color: var(--text3); background: transparent; }
 
+  /* ── Positions table ── */
   .positions-table {
     width: 100%;
     border-collapse: collapse;
@@ -308,6 +315,7 @@
   .pl-pos { color: var(--accent); }
   .pl-neg { color: var(--danger); }
 
+  /* ── Log feed ── */
   .log-feed {
     display: flex;
     flex-direction: column;
@@ -336,6 +344,7 @@
   .log-tag.error { background: rgba(239,68,68,0.1); color: var(--danger); }
   .log-tag.halt { background: rgba(239,68,68,0.2); color: var(--danger); }
 
+  /* ── Kill switch ── */
   .halt-btn {
     background: rgba(239,68,68,0.08);
     border: 1px solid rgba(239,68,68,0.25);
@@ -371,6 +380,7 @@
   }
   .resume-btn:hover { background: rgba(74,222,128,0.15); }
 
+  /* ── Config panel ── */
   .config-row {
     display: flex;
     justify-content: space-between;
@@ -387,6 +397,7 @@
   .config-val.off { color: var(--text3); }
   .config-val.paper { color: var(--info); }
 
+  /* ── Service status ── */
   .service-row {
     display: flex;
     align-items: center;
@@ -405,6 +416,7 @@
   .service-url { color: var(--text3); font-size: 10px; }
   .service-latency { color: var(--text3); font-size: 10px; text-align: right; }
 
+  /* ── Setup overlay ── */
   #setup-overlay {
     position: absolute;
     top: 0; left: 0; right: 0; bottom: 0;
@@ -492,6 +504,7 @@
     line-height: 1.6;
   }
 
+  /* ── Empty state ── */
   .empty {
     font-family: var(--mono);
     font-size: 11px;
@@ -500,6 +513,7 @@
     padding: 20px 0;
   }
 
+  /* ── Loading shimmer ── */
   .shimmer {
     background: var(--bg3);
     border-radius: 4px;
@@ -511,8 +525,10 @@
     50% { opacity: 0.8; }
   }
 
+  /* ── Full-width section ── */
   .full-width { margin-bottom: 24px; }
 
+  /* Scrollbar */
   ::-webkit-scrollbar { width: 4px; }
   ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
@@ -589,6 +605,8 @@
 
   <!-- Watchlist + Positions -->
   <div class="two-col">
+
+    <!-- Watchlist scores -->
     <div class="card">
       <div class="card-header">
         <span class="card-title">Watchlist</span>
@@ -599,6 +617,7 @@
       </div>
     </div>
 
+    <!-- Open positions -->
     <div class="card">
       <div class="card-header">
         <span class="card-title">Open positions</span>
@@ -608,10 +627,13 @@
         <div class="empty">Loading...</div>
       </div>
     </div>
+
   </div>
 
   <!-- Options + Config -->
   <div class="two-col">
+
+    <!-- Options positions -->
     <div class="card">
       <div class="card-header">
         <span class="card-title">Options positions</span>
@@ -622,6 +644,7 @@
       </div>
     </div>
 
+    <!-- Config + controls -->
     <div class="card">
       <div class="card-header">
         <span class="card-title">Config</span>
@@ -640,10 +663,13 @@
         <button class="resume-btn" id="resume-btn" onclick="triggerResume()">Resume trading</button>
       </div>
     </div>
+
   </div>
 
   <!-- Services + Log -->
   <div class="two-col">
+
+    <!-- Service health -->
     <div class="card">
       <div class="card-header">
         <span class="card-title">Services</span>
@@ -664,6 +690,7 @@
       </div>
     </div>
 
+    <!-- Decision log -->
     <div class="card">
       <div class="card-header">
         <span class="card-title">Decision log</span>
@@ -675,43 +702,11 @@
         </div>
       </div>
     </div>
-  </div>
 
-  <!-- ── REVERSAL SCANNER SECTION ── -->
-  <div class="section-header" style="margin-top: 8px;">
-    <span class="section-label">Reversal Scanner</span>
-    <div class="section-line"></div>
-    <span id="rev-spy-badge" style="font-family: var(--mono); font-size: 10px; padding: 2px 8px; border-radius: 3px; border: 1px solid var(--border); color: var(--text3); margin-left: 10px; flex-shrink: 0;">SPY –</span>
-    <span id="rev-session-badge" style="font-family: var(--mono); font-size: 10px; padding: 2px 8px; border-radius: 3px; border: 1px solid var(--border); color: var(--text3); margin-left: 6px; flex-shrink: 0;">–</span>
-    <span id="rev-last-scan" style="font-family: var(--mono); font-size: 10px; color: var(--text3); margin-left: 10px; flex-shrink: 0;">–</span>
   </div>
-
-  <div class="two-col" style="margin-bottom: 24px;">
-    <div class="card">
-      <div class="card-header">
-        <span class="card-title">Live Conditions</span>
-        <span style="font-family: var(--mono); font-size: 10px; color: var(--text3);">GOOG · META · TSLA · NVDA</span>
-      </div>
-      <div class="card-body" id="rev-conditions-body">
-        <div class="empty">Loading...</div>
-      </div>
-    </div>
-
-    <div class="card">
-      <div class="card-header">
-        <span class="card-title">★ Reversal Signals</span>
-        <span style="font-family: var(--mono); font-size: 10px; color: var(--text3);">last 10</span>
-      </div>
-      <div class="card-body" style="padding: 8px 16px;">
-        <div class="log-feed" id="rev-signals-feed">
-          <div class="empty">No signals yet</div>
-        </div>
-      </div>
-    </div>
-  </div>
-  <!-- ── END REVERSAL SCANNER SECTION ── -->
 
 </main>
+
 </div>
 
 <script>
@@ -1008,9 +1003,6 @@ async function refresh() {
     document.getElementById('last-updated').textContent = 'error — check console';
     console.error('Dashboard refresh error:', e);
   }
-
-  // Also refresh reversal scanner
-  await refreshReversal();
 }
 
 async function triggerHalt() {
@@ -1035,116 +1027,6 @@ async function triggerResume() {
     await refresh();
   } catch(e) { alert('Resume request failed: ' + e.message); }
 }
-
-// ── Reversal Scanner Dashboard Logic ─────────────────────────────────────────
-
-function renderReversalConditions(tickers) {
-  const gateNames  = ['sweep', 'trend', 'macd', 'supp'];
-  const gateLabels = { sweep: 'Sweep', trend: 'SPY↑', macd: 'MACD', supp: 'Supp' };
-
-  if (!tickers || !Object.keys(tickers).length) {
-    document.getElementById('rev-conditions-body').innerHTML = '<div class="empty">No data</div>';
-    return;
-  }
-
-  const html = Object.entries(tickers).map(([ticker, data]) => {
-    const conds       = data.conditions || {};
-    const signalFired = data.signal;
-
-    const gateHtml = gateNames.map(g => {
-      const active = conds[g] === true;
-      const color  = active ? 'var(--accent)' : 'var(--text3)';
-      const bg     = active ? 'rgba(74,222,128,0.08)' : 'transparent';
-      return `<span style="font-family:var(--mono);font-size:10px;padding:2px 6px;border-radius:3px;border:1px solid ${active ? 'rgba(74,222,128,0.25)' : 'var(--border)'};color:${color};background:${bg};">${gateLabels[g]}</span>`;
-    }).join('');
-
-    const suppDetail = conds.suppScore != null
-      ? `<span style="font-family:var(--mono);font-size:10px;color:var(--text3);margin-left:6px;">${conds.s_rsi?'RSI ':' '}${conds.s_vol?'VOL ':' '}${conds.s_close?'CLOSE ':' '}${conds.s_vwap?'VWAP':' '}</span>`
-      : '';
-
-    const signalBadge = signalFired
-      ? `<span style="font-family:var(--mono);font-size:10px;font-weight:600;padding:2px 8px;border-radius:3px;margin-left:8px;background:rgba(74,222,128,0.15);border:1px solid rgba(74,222,128,0.4);color:var(--accent);">★ SIGNAL</span>`
-      : '';
-
-    const priceStr = conds.price
-      ? `<span style="font-family:var(--mono);font-size:11px;color:var(--text2);margin-left:auto;">$${conds.price}</span>`
-      : '';
-
-    return `
-      <div style="padding:10px 0;border-bottom:1px solid var(--border);">
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
-          <span style="font-family:var(--mono);font-size:13px;font-weight:500;color:var(--text);width:48px;">${ticker}</span>
-          ${gateHtml}${signalBadge}${priceStr}
-        </div>
-        <div style="display:flex;align-items:center;gap:4px;padding-left:56px;">${suppDetail}</div>
-      </div>`;
-  }).join('');
-
-  document.getElementById('rev-conditions-body').innerHTML = html || '<div class="empty">No data</div>';
-}
-
-function renderReversalSignals(signals) {
-  const el = document.getElementById('rev-signals-feed');
-  if (!signals || !signals.length) {
-    el.innerHTML = '<div class="empty">No signals yet today</div>';
-    return;
-  }
-
-  el.innerHTML = signals.slice(0, 10).map(s => {
-    const ts = new Date(s.ts).toLocaleTimeString('en-US', { hour:'2-digit', minute:'2-digit', hour12:false });
-    const hc = parseInt(s.suppScore) >= 3 ? ' ★★' : ' ★';
-    const contract = s.contractSym ? ` · ${s.contractSym} @ $${s.premium}` : '';
-    return `
-      <div class="log-entry">
-        <span class="log-ts">${ts}</span>
-        <span class="log-ticker">${s.ticker}</span>
-        <span class="log-tag order">CALL${hc}</span>
-        <span class="log-msg">$${s.entry} → T1 $${s.t1} | SL $${s.sl} | supp ${s.suppScore}/4 | exit ${s.exitBy}${contract}</span>
-      </div>`;
-  }).join('');
-}
-
-async function refreshReversal() {
-  if (!cfg.ordersUrl) return;
-  try {
-    const res = await fetch(`${cfg.ordersUrl}/api/reversal/status`, { headers: headers() });
-    if (!res.ok) return;
-    const data = await res.json();
-
-    // SPY trend badge
-    const spyBadge = document.getElementById('rev-spy-badge');
-    if (data.spyTrend === 'bull') {
-      spyBadge.style.color = 'var(--accent)';
-      spyBadge.style.borderColor = 'rgba(74,222,128,0.3)';
-      spyBadge.textContent = 'SPY BULL ↑';
-    } else if (data.spyTrend === 'bear') {
-      spyBadge.style.color = 'var(--danger)';
-      spyBadge.style.borderColor = 'rgba(239,68,68,0.3)';
-      spyBadge.textContent = 'SPY BEAR ↓';
-    } else {
-      spyBadge.textContent = 'SPY –';
-    }
-
-    // Session badge
-    const sessBadge = document.getElementById('rev-session-badge');
-    sessBadge.textContent = data.inSession ? 'IN SESSION' : 'CLOSED';
-    sessBadge.style.color = data.inSession ? 'var(--accent)' : 'var(--text3)';
-
-    // Last scan
-    if (data.lastScan) {
-      document.getElementById('rev-last-scan').textContent =
-        'scan ' + new Date(data.lastScan).toLocaleTimeString('en-US', { hour:'2-digit', minute:'2-digit', second:'2-digit', hour12:false });
-    }
-
-    renderReversalConditions(data.tickers);
-    renderReversalSignals(data.signals);
-
-  } catch(e) {
-    console.error('Reversal refresh error:', e);
-  }
-}
-
-// ── Boot ──────────────────────────────────────────────────────────────────────
 
 loadConfig();
 
