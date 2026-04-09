@@ -101,7 +101,7 @@ function getOptionsFetcher() {
     if (!om) return null;
     try {
       const { OptionsManager } = require('./optionsManager');
-      const inst = new OptionsManager(om, { enabled: true });
+      const inst = new OptionsManager(om, { enabled: true, strategies: { cashSecuredPut: false, coveredCall: false, longCall: true } });
       _optionsFetcher = inst.fetcher;
     } catch(e) {
       console.error('[reversal] OptionsManager init failed:', e.message);
