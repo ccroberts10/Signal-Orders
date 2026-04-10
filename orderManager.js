@@ -51,7 +51,7 @@ const DEFAULT_CONFIG = {
     MRVL:  'mid',   MU:    'mid',   AMD:   'mid',   PLTR:  'mid',
     TSLA:  'mid',   MSTR:  'mid',   RMBS:  'mid',
     METC:  'small', POET:  'small', ATOM:  'small', AAOI:  'small',
-    VIAV:  'small', VICR:  'small', OPTX:  'small',
+    VIAV:  'small', VICR:  'small', OPTX:  'small', MXL:   'mid',
   },
 
   // Sector mapping for concentration limit
@@ -62,7 +62,7 @@ const DEFAULT_CONFIG = {
     PLTR:  'software',  MSTR:  'crypto',    TSLA:  'ev',
     SPY:   'etf',       QQQ:   'etf',       RMBS:  'semis',
     ATOM:  'biotech',   VICR:  'power',     POET:  'photonics',
-    AAOI:  'photonics', VIAV:  'photonics', METC:  'coal',  OPTX:  'biotech',
+    AAOI:  'photonics', VIAV:  'photonics', METC:  'coal',  OPTX:  'biotech',  MXL:   'semis',
   },
 
   maxPerSector:         2,     // Max 2 positions per sector
