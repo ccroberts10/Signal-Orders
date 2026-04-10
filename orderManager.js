@@ -40,7 +40,7 @@ const DEFAULT_CONFIG = {
   // Volatility-tiered trailing stops
   trailingStops: {
     large: 0.08,    // AAPL, MSFT, GOOGL, AMZN, META, NVDA
-    mid:   0.10,    // MRVL, MU, AMD, PLTR, TSLA, MSTR, RMBS
+    mid:   0.10,    // MRVL, MU, AMD, TSLA, RMBS
     small: 0.15,    // METC, POET, ATOM, AAOI, VIAV, VICR
   },
 
@@ -48,8 +48,8 @@ const DEFAULT_CONFIG = {
   volatilityTier: {
     AAPL:  'large', MSFT:  'large', GOOGL: 'large', AMZN:  'large',
     META:  'large', NVDA:  'large', SPY:   'large', QQQ:   'large',
-    MRVL:  'mid',   MU:    'mid',   AMD:   'mid',   PLTR:  'mid',
-    TSLA:  'mid',   MSTR:  'mid',   RMBS:  'mid',
+    MRVL:  'mid',   MU:    'mid',   AMD:   'mid',
+    TSLA:  'mid',   RMBS:  'mid',
     METC:  'small', POET:  'small', ATOM:  'small', AAOI:  'small',
     VIAV:  'small', VICR:  'small', OPTX:  'small', MXL:   'mid',
   },
@@ -59,7 +59,7 @@ const DEFAULT_CONFIG = {
     AAPL:  'tech',      MSFT:  'tech',      GOOGL: 'tech',
     AMZN:  'tech',      META:  'tech',      NVDA:  'semis',
     AMD:   'semis',     MU:    'semis',     MRVL:  'semis',
-    PLTR:  'software',  MSTR:  'crypto',    TSLA:  'ev',
+    TSLA:  'ev',
     SPY:   'etf',       QQQ:   'etf',       RMBS:  'semis',
     ATOM:  'biotech',   VICR:  'power',     POET:  'photonics',
     AAOI:  'photonics', VIAV:  'photonics', METC:  'coal',  OPTX:  'biotech',  MXL:   'semis',
