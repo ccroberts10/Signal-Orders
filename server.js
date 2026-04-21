@@ -19,19 +19,22 @@ app.get('/dashboard', (req, res) =>
   res.sendFile(path.resolve(__dirname, 'dashboard', 'index.html'))
 );
 
-// ── Proxy routes — no API key needed from browser ─────────────────────────────
-// These are read-only endpoints the dashboard needs. Auth is handled server-side
-// by injecting the API key, so mobile Safari never needs to send a custom header.
+// ── Proxy routes — injects API key server-side so mobile Safari works ─────────
+// These bypass the x-api-key header requirement for read-only dashboard data
+
+function injectKey(req, res, next) {
+  req.headers['x-api-key'] = process.env.API_KEY;
+  next();
+}
 
 const ordersRouter  = require('./routes/orders');
 const optionsRouter = require('./routes/options');
 const gexRouter     = require('./routes/gex');
 
-// Dashboard proxy — injects API key server-side, no header needed from browser
-app.get('/proxy/status',         (req, res, next) => { req.headers['x-api-key'] = process.env.API_KEY; next(); }, ordersRouter);
-app.get('/proxy/log',            (req, res, next) => { req.headers['x-api-key'] = process.env.API_KEY; next(); }, ordersRouter);
-app.get('/proxy/options-status', (req, res, next) => { req.headers['x-api-key'] = process.env.API_KEY; next(); }, optionsRouter);
-app.post('/proxy/poll-now',      (req, res, next) => { req.headers['x-api-key'] = process.env.API_KEY; next(); }, ordersRouter);
+app.get('/proxy/status',         injectKey, (req, res, next) => { req.url = '/status';  next(); }, ordersRouter);
+app.get('/proxy/log',            injectKey, (req, res, next) => { req.url = '/log';     next(); }, ordersRouter);
+app.get('/proxy/options-status', injectKey, (req, res, next) => { req.url = '/status';  next(); }, optionsRouter);
+app.post('/proxy/poll-now',      injectKey, (req, res, next) => { req.url = '/poll-now'; next(); }, ordersRouter);
 
 // ── Protected API routes — key required ───────────────────────────────────────
 function requireKey(req, res, next) {
