@@ -14,6 +14,34 @@
  */
 
 const EventEmitter = require('events');
+const fs           = require('fs');
+const path         = require('path');
+
+// Persistent storage for peak prices — survives Railway restarts
+const PEAKS_FILE = process.env.PEAKS_FILE || '/data/peaks.json';
+
+function loadPeaks() {
+  try {
+    if (fs.existsSync(PEAKS_FILE)) {
+      const data = JSON.parse(fs.readFileSync(PEAKS_FILE, 'utf8'));
+      console.log('[ORDER-MGR] Loaded peak prices:', JSON.stringify(data));
+      return data;
+    }
+  } catch (e) {
+    console.warn('[ORDER-MGR] Could not load peak prices:', e.message);
+  }
+  return {};
+}
+
+function savePeaks(peaks) {
+  try {
+    const dir = path.dirname(PEAKS_FILE);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(PEAKS_FILE, JSON.stringify(peaks, null, 2));
+  } catch (e) {
+    console.warn('[ORDER-MGR] Could not save peak prices:', e.message);
+  }
+}
 
 // ─── Config ───────────────────────────────────────────────────────────────────
 
@@ -252,7 +280,7 @@ class OrderManager extends EventEmitter {
     this.portfolioValueAtOpen = null;
 
     // Peak price tracking per position: { TICKER: { peakPrice, entryPrice, entryDate } }
-    this.positionPeaks = {};
+    this.positionPeaks = loadPeaks(); // Persisted across restarts
 
     // Score history for trending filter: { TICKER: [score1, score2, ...] }
     this.scoreHistory = {};
@@ -281,6 +309,9 @@ class OrderManager extends EventEmitter {
     if (this.config.paperTrading) {
       this.logger.warn('PAPER TRADING MODE — no real money at risk');
     }
+
+    // Reconcile peaks with live positions after a short delay (broker may not be ready instantly)
+    setTimeout(() => this._reconcilePeaks().catch(e => this.logger.warn('Peak reconcile error:', e.message)), 5000);
   }
 
   // ── Volatility Tier Helpers ───────────────────────────────────────────────────
@@ -334,6 +365,39 @@ class OrderManager extends EventEmitter {
     this.marketRegime = { ...regime, lastChecked: now };
     this.logger.info('Market regime updated', { riskOn: regime.riskOn, reason: regime.reason });
     return this.marketRegime;
+  }
+
+  // ── Peak Reconciliation — seeds missing peaks from live positions ──────────────
+
+  async _reconcilePeaks() {
+    try {
+      const positions = await this.broker.getAllPositions();
+      let changed = false;
+      for (const pos of positions) {
+        const sym   = pos.symbol;
+        const price = parseFloat(pos.current_price);
+        const entry = parseFloat(pos.avg_entry_price);
+        if (!this.positionPeaks[sym]) {
+          // Missing peak — seed with current price (conservative — won't trigger stop immediately)
+          this.positionPeaks[sym] = { peakPrice: price, entryPrice: entry, entryDate: new Date().toISOString() };
+          this.logger.warn(`Peak seeded for ${sym} at $${price.toFixed(2)} (restart recovery)`);
+          changed = true;
+        }
+      }
+      // Remove peaks for positions that no longer exist
+      const activeSymbols = positions.map(p => p.symbol);
+      for (const sym of Object.keys(this.positionPeaks)) {
+        if (!activeSymbols.includes(sym)) {
+          delete this.positionPeaks[sym];
+          this.logger.info(`Peak cleared for ${sym} — no longer held`);
+          changed = true;
+        }
+      }
+      if (changed) savePeaks(this.positionPeaks);
+      this.logger.info('Peak reconciliation complete', { peaks: JSON.stringify(this.positionPeaks) });
+    } catch (e) {
+      this.logger.warn('Peak reconciliation failed (non-fatal):', e.message);
+    }
   }
 
   // ── Kill Switch ───────────────────────────────────────────────────────────────
@@ -426,6 +490,7 @@ class OrderManager extends EventEmitter {
     }
     if (currentPrice > this.positionPeaks[ticker].peakPrice) {
       this.positionPeaks[ticker].peakPrice = currentPrice;
+      savePeaks(this.positionPeaks); // Persist immediately
     }
 
     const peakPrice    = this.positionPeaks[ticker].peakPrice;
