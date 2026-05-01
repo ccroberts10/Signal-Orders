@@ -610,7 +610,7 @@
     <div class="card">
       <div class="card-header">
         <span class="card-title">Watchlist</span>
-        <span style="font-family: var(--mono); font-size: 10px; color: var(--text3);">21 tickers</span>
+        <span style="font-family: var(--mono); font-size: 10px; color: var(--text3);">${tickers.length} tickers</span>
       </div>
       <div class="card-body" id="watchlist-body">
         <div class="empty">Loading...</div>
@@ -782,7 +782,25 @@ function scoreColor(s) {
 }
 
 function renderWatchlist(decisions) {
-  const tickers = ['AAPL', 'NVDA', 'TSLA', 'META', 'AMD', 'SPY', 'QQQ', 'MSFT', 'GOOGL', 'AMZN', 'VICR', 'RMBS', 'ATOM', 'MU', 'MRVL', 'POET', 'AAOI', 'METC', 'VIAV', 'OPTX', 'MXL'];
+  let tickers = []; // Loaded dynamically from server watchlist
+
+async function loadWatchlist() {
+  try {
+    const res  = await fetch('/proxy/status');
+    const data = await res.json();
+    if (data.config && data.config.watchlist) {
+      tickers = data.config.watchlist;
+    } else if (data.positions) {
+      // Fallback: extract from SIGNAL results if available
+      const sigRes  = await fetch(cfg.signalUrl + '/api/results');
+      const sigData = await sigRes.json();
+      if (sigData.results) tickers = sigData.results.map(r => r.ticker);
+    }
+  } catch (e) {
+    console.warn('Could not load watchlist dynamically, using fallback');
+    tickers = ['AAPL','NVDA','TSLA','META','AMD','SPY','QQQ','MSFT','GOOGL','AMZN','VICR','RMBS','ATOM','MU','MRVL','POET','AAOI','METC','VIAV','OPTX','MXL'];
+  }
+}
   const latest = {};
   for (const d of (decisions || [])) {
     if (!latest[d.ticker] || d.ts > latest[d.ticker].ts) latest[d.ticker] = d;
@@ -941,6 +959,9 @@ function renderConfig(status) {
 
 async function refresh() {
   if (!cfg.ordersUrl) return;
+
+  // Load watchlist dynamically on first run
+  if (tickers.length === 0) await loadWatchlist();
 
   document.getElementById('last-updated').textContent = 'refreshing…';
 
