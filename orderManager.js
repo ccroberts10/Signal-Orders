@@ -448,14 +448,20 @@ class OrderManager extends EventEmitter {
   // ── Position Sizing ───────────────────────────────────────────────────────────
 
   async calculateShares(symbol, score) {
-    const account    = await this.broker.getAccount();
-    const equity     = parseFloat(account.equity);
+    const account     = await this.broker.getAccount();
+    const equity      = parseFloat(account.equity);
     const positionPct = this._getPositionSize(score);
-    const maxDollar  = equity * positionPct;
-    const { mid }    = await this.getValidatedQuote(symbol);
-    const shares     = Math.floor(maxDollar / mid);
-    if (shares < 1) throw new Error(`Position size rounds to 0 shares for ${symbol} at $${mid.toFixed(2)}`);
-    this.logger.debug('Position size', { symbol, score, positionPct, maxDollar, mid, shares });
+    const maxDollar   = equity * positionPct;
+    const { mid }     = await this.getValidatedQuote(symbol);
+
+    // Support fractional shares — round to 6 decimal places
+    const sharesRaw  = maxDollar / mid;
+    const shares     = sharesRaw >= 1
+      ? Math.floor(sharesRaw)                          // whole shares for expensive stocks
+      : parseFloat(sharesRaw.toFixed(6));               // fractional for small accounts
+
+    if (shares <= 0) throw new Error(`Position size rounds to 0 shares for ${symbol} at $${mid.toFixed(2)}`);
+    this.logger.debug('Position size', { symbol, score, positionPct, maxDollar, mid, shares, fractional: shares < 1 });
     return { shares, positionPct };
   }
 
@@ -652,7 +658,15 @@ class OrderManager extends EventEmitter {
       const tier = this._getTier(ticker);
       const stop = this._getTrailingStop(ticker);
 
-      const orderParams = {
+      // Use notional dollar amount for fractional shares, qty for whole shares
+      const isFractional = shares < 1;
+      const orderParams = isFractional ? {
+        symbol:        ticker,
+        notional:      (shares * mid).toFixed(2),  // dollar amount for fractional
+        side:          'buy',
+        type:          'market',                    // fractional orders must be market orders
+        time_in_force: 'day',
+      } : {
         symbol:        ticker,
         qty:           shares.toString(),
         side:          'buy',
@@ -812,6 +826,7 @@ class OrderManager extends EventEmitter {
         buyThreshold:     this.config.buyThreshold,
         sellThreshold:    this.config.sellThreshold,
         noBuyList:        this.config.noBuyList,
+        watchlist:        this.config.watchlist,
         maxOpenPositions: this.config.maxOpenPositions,
         maxPerSector:     this.config.maxPerSector,
         positionSizing:   '90+→15% | 80-89→12% | 75-79→8%',
