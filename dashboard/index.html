@@ -610,7 +610,7 @@
     <div class="card">
       <div class="card-header">
         <span class="card-title">Watchlist</span>
-        <span style="font-family: var(--mono); font-size: 10px; color: var(--text3);">${tickers.length} tickers</span>
+        <span id="ticker-count" style="font-family: var(--mono); font-size: 10px; color: var(--text3);">– tickers</span>
       </div>
       <div class="card-body" id="watchlist-body">
         <div class="empty">Loading...</div>
@@ -726,8 +726,16 @@ let state = {
 function loadConfig() {
   const saved = localStorage.getItem(LS_KEY);
   if (saved) {
-    try { cfg = { ...cfg, ...JSON.parse(saved) }; } catch(e) {}
+    try {
+      const parsed = JSON.parse(saved);
+      // Only load URL settings from localStorage — never load API key (use hardcoded)
+      if (parsed.ordersUrl) cfg.ordersUrl = parsed.ordersUrl;
+      if (parsed.signalUrl) cfg.signalUrl = parsed.signalUrl;
+      // API key always comes from hardcoded value — clear any stale cached key
+    } catch(e) {}
   }
+  // Always clear any stale localStorage key and use hardcoded
+  localStorage.removeItem(LS_KEY);
 }
 
 function saveConfig() {
@@ -790,16 +798,16 @@ async function loadWatchlist() {
     const data = await res.json();
     if (data.config && data.config.watchlist) {
       tickers = data.config.watchlist;
-    } else if (data.positions) {
-      // Fallback: extract from SIGNAL results if available
-      const sigRes  = await fetch(cfg.signalUrl + '/api/results');
-      const sigData = await sigRes.json();
-      if (sigData.results) tickers = sigData.results.map(r => r.ticker);
+    } else {
+      tickers = ['AAPL','NVDA','TSLA','META','AMD','SPY','QQQ','MSFT','GOOGL','AMZN','VICR','RMBS','ATOM','MU','MRVL','AAOI','METC','VIAV','OPTX','MXL','NOK','FCEL'];
     }
   } catch (e) {
     console.warn('Could not load watchlist dynamically, using fallback');
-    tickers = ['AAPL','NVDA','TSLA','META','AMD','SPY','QQQ','MSFT','GOOGL','AMZN','VICR','RMBS','ATOM','MU','MRVL','POET','AAOI','METC','VIAV','OPTX','MXL','NOK','FCEL'];
+    tickers = ['AAPL','NVDA','TSLA','META','AMD','SPY','QQQ','MSFT','GOOGL','AMZN','VICR','RMBS','ATOM','MU','MRVL','AAOI','METC','VIAV','OPTX','MXL','NOK','FCEL'];
   }
+  // Update ticker count display
+  const el = document.getElementById('ticker-count');
+  if (el) el.textContent = tickers.length + ' tickers';
 }
   const latest = {};
   for (const d of (decisions || [])) {
@@ -989,6 +997,7 @@ async function refresh() {
       document.getElementById('m-cash').textContent      = fmt$(status.account?.cash);
       document.getElementById('m-bp').textContent        = fmt$(status.account?.buyingPower);
       document.getElementById('m-decisions').textContent = status.tradeSummary?.totalDecisions ?? '–';
+      document.getElementById('m-positions').textContent  = status.positions?.length ?? '–';
       document.getElementById('m-orders').textContent    = status.tradeSummary?.totalOrders ?? '–';
 
       renderPositions(status.positions);
