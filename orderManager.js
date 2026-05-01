@@ -48,7 +48,7 @@ function savePeaks(peaks) {
 const DEFAULT_CONFIG = {
   broker:       'alpaca',
   paperTrading: true,
-  watchlist:    ['RMBS', 'VICR', 'ATOM', 'POET'],
+  watchlist:    (process.env.WATCHLIST || 'AAPL,NVDA,TSLA,META,AMD,SPY,QQQ,MSFT,GOOGL,AMZN,VICR,RMBS,ATOM,MU,MRVL,AAOI,METC,VIAV,OPTX,MXL,NOK,FCEL').split(',').map(s => s.trim()),
 
   // Signal thresholds
   buyThreshold:  75,
