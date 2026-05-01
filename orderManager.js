@@ -73,25 +73,20 @@ const DEFAULT_CONFIG = {
   },
 
   // Ticker volatility tiers
-  volatilityTier: {
-    AAPL:  'large', MSFT:  'large', GOOGL: 'large', AMZN:  'large',
-    META:  'large', NVDA:  'large', SPY:   'large', QQQ:   'large',
-    MRVL:  'mid',   MU:    'mid',   AMD:   'mid',
-    TSLA:  'mid',   RMBS:  'mid',
-    METC:  'small', POET:  'small', ATOM:  'small', AAOI:  'small',
-    VIAV:  'small', VICR:  'small', OPTX:  'small', MXL:   'mid', NOK:   'mid',   FCEL:  'small',
+    // Volatility tiers — override via Railway env vars
+  // LARGE_CAPS=AAPL,MSFT,GOOGL,AMZN,META,NVDA,SPY,QQQ
+  // SMALL_CAPS=METC,POET,ATOM,AAOI,VIAV,VICR,OPTX,FCEL
+  // Everything else defaults to mid tier
+  volatilityTierOverrides: {
+    large: (process.env.LARGE_CAPS || 'AAPL,MSFT,GOOGL,AMZN,META,NVDA,SPY,QQQ').split(',').map(s=>s.trim()),
+    small: (process.env.SMALL_CAPS || 'METC,ATOM,AAOI,VIAV,VICR,OPTX,FCEL').split(',').map(s=>s.trim()),
   },
 
   // Sector mapping for concentration limit
-  sectors: {
-    AAPL:  'tech',      MSFT:  'tech',      GOOGL: 'tech',
-    AMZN:  'tech',      META:  'tech',      NVDA:  'semis',
-    AMD:   'semis',     MU:    'semis',     MRVL:  'semis',
-    TSLA:  'ev',
-    SPY:   'etf',       QQQ:   'etf',       RMBS:  'semis',
-    ATOM:  'biotech',   VICR:  'power',     POET:  'photonics',
-    AAOI:  'photonics', VIAV:  'photonics', METC:  'coal',  OPTX:  'biotech',  MXL:   'semis',  NOK:   'telecom',  FCEL:  'energy',
-  },
+  // Sectors — override via Railway env var
+  // SECTOR_MAP=AAPL:tech,NVDA:semis,TSLA:ev,NOK:telecom,FCEL:energy
+  // Tickers not listed default to 'unknown' (no sector limit applied)
+  sectorMapRaw: process.env.SECTOR_MAP || 'AAPL:tech,MSFT:tech,GOOGL:tech,AMZN:tech,META:tech,NVDA:semis,AMD:semis,MU:semis,MRVL:semis,RMBS:semis,MXL:semis,TSLA:ev,SPY:etf,QQQ:etf,ATOM:biotech,OPTX:biotech,VICR:power,AAOI:photonics,VIAV:photonics,METC:coal,NOK:telecom,FCEL:energy',
 
   maxPerSector:         2,     // Max 2 positions per sector
   maxOpenPositions:     4,     // Max concurrent positions
@@ -317,7 +312,21 @@ class OrderManager extends EventEmitter {
   // ── Volatility Tier Helpers ───────────────────────────────────────────────────
 
   _getTier(ticker) {
-    return this.config.volatilityTier[ticker] || 'mid';
+    const overrides = this.config.volatilityTierOverrides;
+    if (overrides.large.includes(ticker)) return 'large';
+    if (overrides.small.includes(ticker)) return 'small';
+    return 'mid'; // default — safe middle ground
+  }
+
+  _getSector(ticker) {
+    if (!this._sectorMap) {
+      this._sectorMap = {};
+      (this.config.sectorMapRaw || '').split(',').forEach(pair => {
+        const [sym, sec] = pair.trim().split(':');
+        if (sym && sec) this._sectorMap[sym.trim()] = sec.trim();
+      });
+    }
+    return this._sectorMap[ticker] || 'unknown';
   }
 
   _getTrailingStop(ticker) {
@@ -350,7 +359,7 @@ class OrderManager extends EventEmitter {
 
   async _getSectorCount(sector) {
     const positions = await this.broker.getAllPositions();
-    return positions.filter(p => this.config.sectors[p.symbol] === sector).length;
+    return positions.filter(p => this._getSector(p.symbol) === sector).length;
   }
 
   // ── Market Regime Check ───────────────────────────────────────────────────────
@@ -632,7 +641,7 @@ class OrderManager extends EventEmitter {
       }
 
       // Sector concentration limit
-      const sector = this.config.sectors[ticker];
+      const sector = this._getSector(ticker);
       if (sector) {
         const sectorCount = await this._getSectorCount(sector);
         if (sectorCount >= this.config.maxPerSector) {
@@ -807,7 +816,7 @@ class OrderManager extends EventEmitter {
         return {
           symbol:          p.symbol,
           tier,
-          sector:          this.config.sectors[p.symbol] || 'unknown',
+          sector:          this._getSector(p.symbol),
           qty:             p.qty,
           avgEntry:        entry.toFixed(2),
           currentPrice:    current.toFixed(2),
