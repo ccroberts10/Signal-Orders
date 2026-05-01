@@ -789,26 +789,24 @@ function scoreColor(s) {
   return '#ef4444';
 }
 
-function renderWatchlist(decisions) {
-  let tickers = []; // Loaded dynamically from server watchlist
+// ── Watchlist ticker array — populated dynamically from server ────────────────
+let tickers = ['AAPL','NVDA','TSLA','META','AMD','SPY','QQQ','MSFT','GOOGL','AMZN','VICR','RMBS','ATOM','MU','MRVL','AAOI','METC','VIAV','OPTX','MXL','NOK','FCEL'];
 
 async function loadWatchlist() {
   try {
     const res  = await fetch('/proxy/status');
     const data = await res.json();
-    if (data.config && data.config.watchlist) {
+    if (data.config && data.config.watchlist && data.config.watchlist.length > 0) {
       tickers = data.config.watchlist;
-    } else {
-      tickers = ['AAPL','NVDA','TSLA','META','AMD','SPY','QQQ','MSFT','GOOGL','AMZN','VICR','RMBS','ATOM','MU','MRVL','AAOI','METC','VIAV','OPTX','MXL','NOK','FCEL'];
     }
   } catch (e) {
-    console.warn('Could not load watchlist dynamically, using fallback');
-    tickers = ['AAPL','NVDA','TSLA','META','AMD','SPY','QQQ','MSFT','GOOGL','AMZN','VICR','RMBS','ATOM','MU','MRVL','AAOI','METC','VIAV','OPTX','MXL','NOK','FCEL'];
+    console.warn('Using fallback watchlist');
   }
-  // Update ticker count display
   const el = document.getElementById('ticker-count');
   if (el) el.textContent = tickers.length + ' tickers';
 }
+
+function renderWatchlist(decisions) {
   const latest = {};
   for (const d of (decisions || [])) {
     if (!latest[d.ticker] || d.ts > latest[d.ticker].ts) latest[d.ticker] = d;
