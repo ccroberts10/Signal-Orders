@@ -89,7 +89,7 @@ const DEFAULT_CONFIG = {
   sectorMapRaw: process.env.SECTOR_MAP || 'AAPL:tech,MSFT:tech,GOOGL:tech,AMZN:tech,META:tech,NVDA:semis,AMD:semis,MU:semis,MRVL:semis,RMBS:semis,MXL:semis,TSLA:ev,SPY:etf,QQQ:etf,ATOM:biotech,OPTX:biotech,VICR:power,AAOI:photonics,VIAV:photonics,METC:coal,NOK:telecom,FCEL:energy',
 
   maxPerSector:         2,     // Max 2 positions per sector
-  maxOpenPositions:     4,     // Max concurrent positions
+  maxOpenPositions:     parseInt(process.env.MAX_POSITIONS || '6'),  // Max concurrent positions
 
   // Order execution
   defaultOrderType:  'limit',
@@ -193,12 +193,25 @@ class AlpacaAdapter {
     const url  = `${base || this.baseUrl}${path}`;
     const opts = { method, headers: this.headers };
     if (body) opts.body = JSON.stringify(body);
-    const res = await fetch(url, opts);
-    if (!res.ok) {
-      const err = await res.text();
-      throw new Error(`Alpaca ${method} ${path} → ${res.status}: ${err}`);
+
+    // 10 second timeout to prevent hanging dashboard
+    const controller = new AbortController();
+    const timeout    = setTimeout(() => controller.abort(), 10000);
+    opts.signal      = controller.signal;
+
+    try {
+      const res = await fetch(url, opts);
+      clearTimeout(timeout);
+      if (!res.ok) {
+        const err = await res.text();
+        throw new Error(`Alpaca ${method} ${path} → ${res.status}: ${err}`);
+      }
+      return res.json();
+    } catch (e) {
+      clearTimeout(timeout);
+      if (e.name === 'AbortError') throw new Error(`Alpaca ${method} ${path} → timeout after 10s`);
+      throw e;
     }
-    return res.json();
   }
 
   async getAccount()        { return this._fetch('GET', '/v2/account'); }
@@ -788,10 +801,17 @@ class OrderManager extends EventEmitter {
   // ── Status ────────────────────────────────────────────────────────────────────
 
   async getStatus() {
-    const account    = await this.broker.getAccount();
-    const positions  = await this.broker.getAllPositions();
-    const openOrders = await this.broker.getOrders('open');
-    const regime     = this.marketRegime;
+    let account, positions, openOrders;
+    const regime = this.marketRegime;
+
+    try { account    = await this.broker.getAccount(); }
+    catch (e) { account = { equity: '0', cash: '0', buying_power: '0' }; this.logger.warn('getStatus: account fetch failed', { error: e.message }); }
+
+    try { positions  = await this.broker.getAllPositions(); }
+    catch (e) { positions = []; this.logger.warn('getStatus: positions fetch failed', { error: e.message }); }
+
+    try { openOrders = await this.broker.getOrders('open'); }
+    catch (e) { openOrders = []; this.logger.warn('getStatus: orders fetch failed', { error: e.message }); }
 
     return {
       halted:      this.halted,
