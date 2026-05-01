@@ -1051,7 +1051,7 @@ async function refresh() {
       state.paper  = status.paper !== false;
 
       document.getElementById('m-equity').textContent    = fmt$(status.account?.equity);
-      updateChart(status.account?.equity);
+      updateChart(status.account?.equity, status.positions);
       document.getElementById('m-cash').textContent      = fmt$(status.account?.cash);
       document.getElementById('m-bp').textContent        = fmt$(status.account?.buyingPower);
       document.getElementById('m-decisions').textContent = status.tradeSummary?.totalDecisions ?? '–';
@@ -1134,11 +1134,12 @@ setInterval(() => {
 }, 30000);
 
 // ── Performance Chart ─────────────────────────────────────────────────────────
+// Tracks % return from initial capital — immune to deposits
+// Stores { t: timestamp, p: unrealizedPL + realizedPL } not raw equity
 
-const PERF_KEY    = 'signal_perf_v2';
-const INITIAL_CAP = 1000.00;
-let   chartRange  = '1D';
-let   perfChart   = null;
+const PERF_KEY     = 'signal_perf_v3';
+const DEPOSIT_KEY  = 'signal_deposits_v1';
+let   chartRange   = '1D';
 
 function loadPerfData() {
   try { return JSON.parse(localStorage.getItem(PERF_KEY) || '[]'); }
@@ -1146,18 +1147,27 @@ function loadPerfData() {
 }
 
 function savePerfData(data) {
-  try { localStorage.setItem(PERF_KEY, JSON.stringify(data.slice(-2000))); }
+  try { localStorage.setItem(PERF_KEY, JSON.stringify(data.slice(-5000))); }
   catch {}
 }
 
-function recordEquity(equity) {
-  const data  = loadPerfData();
-  const now   = Date.now();
-  // Record at most once per minute
+function getDeposits() {
+  try { return parseFloat(localStorage.getItem(DEPOSIT_KEY) || '1000'); }
+  catch { return 1000; }
+}
+
+function recordPnL(unrealizedPL, equity) {
+  const data = loadPerfData();
+  const now  = Date.now();
+  const deposits = getDeposits();
+
+  // P&L as percent of starting capital
+  const pct = (parseFloat(unrealizedPL) / deposits) * 100;
+
   if (data.length > 0 && now - data[data.length - 1].t < 60000) {
-    data[data.length - 1] = { t: now, e: equity };
+    data[data.length - 1] = { t: now, p: parseFloat(pct.toFixed(4)) };
   } else {
-    data.push({ t: now, e: equity });
+    data.push({ t: now, p: parseFloat(pct.toFixed(4)) });
   }
   savePerfData(data);
   return data;
@@ -1202,32 +1212,36 @@ function drawChart(allData) {
     return;
   }
 
-  // Stats
-  const startEquity = data[0].e;
-  const endEquity   = data[data.length - 1].e;
-  const periodReturn = ((endEquity - startEquity) / startEquity * 100);
-  const highs  = data.map(d => d.e);
-  const high   = Math.max(...highs);
-  const low    = Math.min(...highs);
+  // All values are % P&L from starting capital
+  const vals       = data.map(d => d.p);
+  const startPct   = vals[0];
+  const endPct     = vals[vals.length - 1];
+  const periodReturn = endPct - startPct;
+  const high       = Math.max(...vals);
+  const low        = Math.min(...vals);
 
-  // Max drawdown
-  let maxDD = 0, peak = data[0].e;
-  for (const d of data) {
-    if (d.e > peak) peak = d.e;
-    const dd = (peak - d.e) / peak * 100;
+  // Max drawdown in % terms
+  let maxDD = 0, peak = vals[0];
+  for (const v of vals) {
+    if (v > peak) peak = v;
+    const dd = peak - v;
     if (dd > maxDD) maxDD = dd;
   }
+
+  // Always include 0% baseline in the Y range
+  const minVal = Math.min(low, 0) - 0.1;
+  const maxVal = Math.max(high, 0) + 0.1;
 
   // Update stats
   const retEl = document.getElementById('chart-period-return');
   if (retEl) {
-    retEl.textContent = (periodReturn >= 0 ? '+' : '') + periodReturn.toFixed(2) + '%';
-    retEl.className   = 'chart-stat-value ' + (periodReturn >= 0 ? 'pos' : 'neg');
+    retEl.textContent = (endPct >= 0 ? '+' : '') + endPct.toFixed(2) + '%';
+    retEl.className   = 'chart-stat-value ' + (endPct >= 0 ? 'pos' : 'neg');
   }
   const highEl = document.getElementById('chart-high');
-  if (highEl) highEl.textContent = '$' + high.toFixed(2);
+  if (highEl) highEl.textContent = (high >= 0 ? '+' : '') + high.toFixed(2) + '%';
   const lowEl = document.getElementById('chart-low');
-  if (lowEl) lowEl.textContent = '$' + low.toFixed(2);
+  if (lowEl) lowEl.textContent = (low >= 0 ? '+' : '') + low.toFixed(2) + '%';
   const ddEl = document.getElementById('chart-drawdown');
   if (ddEl) ddEl.textContent = '-' + maxDD.toFixed(2) + '%';
 
@@ -1240,29 +1254,35 @@ function drawChart(allData) {
   const ctx = canvas.getContext('2d');
   ctx.scale(dpr, dpr);
 
-  const pad = { top: 10, right: 10, bottom: 28, left: 48 };
+  const pad = { top: 10, right: 10, bottom: 28, left: 44 };
   const gW  = W - pad.left - pad.right;
   const gH  = H - pad.top  - pad.bottom;
 
-  const minE = Math.min(...highs) * 0.998;
-  const maxE = Math.max(...highs) * 1.002;
   const minT = data[0].t;
   const maxT = data[data.length - 1].t;
 
-  const xOf = t  => pad.left + (t - minT) / (maxT - minT || 1) * gW;
-  const yOf = e  => pad.top  + (1 - (e - minE) / (maxE - minE || 1)) * gH;
+  const xOf = t => pad.left + (t - minT) / (maxT - minT || 1) * gW;
+  const yOf = v => pad.top  + (1 - (v - minVal) / (maxVal - minVal || 1)) * gH;
+
+  // Zero line
+  const zeroY = yOf(0);
+  ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+  ctx.lineWidth   = 1;
+  ctx.setLineDash([4, 4]);
+  ctx.beginPath(); ctx.moveTo(pad.left, zeroY); ctx.lineTo(pad.left + gW, zeroY); ctx.stroke();
+  ctx.setLineDash([]);
 
   // Grid lines
-  ctx.strokeStyle = 'rgba(255,255,255,0.05)';
+  ctx.strokeStyle = 'rgba(255,255,255,0.04)';
   ctx.lineWidth   = 1;
   for (let i = 0; i <= 4; i++) {
-    const y = pad.top + (gH / 4) * i;
+    const y   = pad.top + (gH / 4) * i;
+    const val = maxVal - (maxVal - minVal) * (i / 4);
     ctx.beginPath(); ctx.moveTo(pad.left, y); ctx.lineTo(pad.left + gW, y); ctx.stroke();
-    const val = maxE - (maxE - minE) * (i / 4);
     ctx.fillStyle = 'rgba(255,255,255,0.3)';
     ctx.font = '9px monospace';
     ctx.textAlign = 'right';
-    ctx.fillText('$' + val.toFixed(0), pad.left - 4, y + 3);
+    ctx.fillText((val >= 0 ? '+' : '') + val.toFixed(1) + '%', pad.left - 4, y + 3);
   }
 
   // X axis labels
@@ -1282,23 +1302,23 @@ function drawChart(allData) {
 
   // Gradient fill
   const grad = ctx.createLinearGradient(0, pad.top, 0, pad.top + gH);
-  const isPos = endEquity >= startEquity;
+  const isPos = endPct >= 0;
   grad.addColorStop(0, isPos ? 'rgba(74,222,128,0.25)' : 'rgba(239,68,68,0.25)');
   grad.addColorStop(1, 'rgba(0,0,0,0)');
 
   ctx.beginPath();
-  ctx.moveTo(xOf(data[0].t), yOf(data[0].e));
-  for (const d of data) ctx.lineTo(xOf(d.t), yOf(d.e));
-  ctx.lineTo(xOf(data[data.length-1].t), pad.top + gH);
-  ctx.lineTo(xOf(data[0].t), pad.top + gH);
+  ctx.moveTo(xOf(data[0].t), yOf(data[0].p));
+  for (const d of data) ctx.lineTo(xOf(d.t), yOf(d.p));
+  ctx.lineTo(xOf(data[data.length-1].t), zeroY);
+  ctx.lineTo(xOf(data[0].t), zeroY);
   ctx.closePath();
   ctx.fillStyle = grad;
   ctx.fill();
 
   // Line
   ctx.beginPath();
-  ctx.moveTo(xOf(data[0].t), yOf(data[0].e));
-  for (const d of data) ctx.lineTo(xOf(d.t), yOf(d.e));
+  ctx.moveTo(xOf(data[0].t), yOf(data[0].p));
+  for (const d of data) ctx.lineTo(xOf(d.t), yOf(d.p));
   ctx.strokeStyle = isPos ? '#4ade80' : '#ef4444';
   ctx.lineWidth   = 2;
   ctx.lineJoin    = 'round';
@@ -1306,17 +1326,23 @@ function drawChart(allData) {
 
   // End dot
   const lastX = xOf(data[data.length-1].t);
-  const lastY = yOf(data[data.length-1].e);
+  const lastY = yOf(data[data.length-1].p);
   ctx.beginPath();
   ctx.arc(lastX, lastY, 4, 0, Math.PI * 2);
   ctx.fillStyle = isPos ? '#4ade80' : '#ef4444';
   ctx.fill();
 }
 
-function updateChart(equityStr) {
+function updateChart(equityStr, positions) {
   const equity = parseFloat(equityStr);
   if (!equity || isNaN(equity)) return;
-  const data = recordEquity(equity);
+
+  // Calculate total unrealized P&L from positions
+  const unrealizedPL = (positions || []).reduce((sum, p) => {
+    return sum + parseFloat(p.unrealizedPL || 0);
+  }, 0);
+
+  const data = recordPnL(unrealizedPL, equity);
   drawChart(data);
 }
 
