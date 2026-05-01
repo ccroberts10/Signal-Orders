@@ -15,7 +15,7 @@ function getOM() {
   if (!om) {
     om = new OrderManager({
       paperTrading:  process.env.PAPER_TRADING !== 'false',
-      watchlist:     (process.env.WATCHLIST || 'RMBS,VICR,ATOM,POET').split(','),
+      watchlist:     (process.env.WATCHLIST || 'AAPL,NVDA,TSLA,META,AMD,SPY,QQQ,MSFT,GOOGL,AMZN,VICR,RMBS,ATOM,MU,MRVL,AAOI,METC,VIAV,OPTX,MXL,NOK,FCEL').split(',').map(s => s.trim()),
       buyThreshold:  parseInt(process.env.BUY_THRESHOLD  || '75'),
       sellThreshold: parseInt(process.env.SELL_THRESHOLD || '35'),
     });
