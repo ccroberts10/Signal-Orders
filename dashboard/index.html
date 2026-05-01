@@ -1121,6 +1121,8 @@ loadConfig();
 if (cfg.ordersUrl) {
   document.getElementById('setup-overlay').style.display = 'none';
   refresh();
+  // Draw chart immediately with any stored data
+  setTimeout(() => drawChart(loadPerfData()), 300);
 } else {
   document.getElementById('cfg-orders-url').value = cfg.ordersUrl;
   document.getElementById('cfg-signal-url').value = cfg.signalUrl;
@@ -1180,16 +1182,23 @@ function drawChart(allData) {
   const canvas = document.getElementById('perf-chart');
   if (!canvas) return;
 
+  // If canvas has no size yet, wait for layout and retry
+  if (canvas.offsetWidth === 0) {
+    setTimeout(() => drawChart(allData), 200);
+    return;
+  }
+
   const data = filterByRange(allData, chartRange);
   if (data.length < 2) {
     const ctx = canvas.getContext('2d');
-    canvas.width  = canvas.offsetWidth  * window.devicePixelRatio;
-    canvas.height = canvas.offsetHeight * window.devicePixelRatio;
-    ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
-    ctx.fillStyle = 'rgba(255,255,255,0.1)';
-    ctx.font = '12px monospace';
+    canvas.width  = canvas.offsetWidth  * (window.devicePixelRatio || 1);
+    canvas.height = canvas.offsetHeight * (window.devicePixelRatio || 1);
+    ctx.scale(window.devicePixelRatio || 1, window.devicePixelRatio || 1);
+    ctx.fillStyle = 'rgba(255,255,255,0.15)';
+    ctx.font = '11px monospace';
     ctx.textAlign = 'center';
-    ctx.fillText('Collecting data…', canvas.offsetWidth / 2, canvas.offsetHeight / 2);
+    ctx.textBaseline = 'middle';
+    ctx.fillText('Collecting data — refreshes every 30s', canvas.offsetWidth / 2, canvas.offsetHeight / 2);
     return;
   }
 
