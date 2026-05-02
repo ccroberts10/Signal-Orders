@@ -547,10 +547,10 @@
     }
     .chart-wrap { position: relative; height: 180px; margin-top: 12px; }
     canvas#perf-chart { width: 100% !important; height: 180px !important; }
-    .chart-stat { display: flex; gap: 20px; margin-top: 10px; }
-    .chart-stat-item { display: flex; flex-direction: column; gap: 2px; }
-    .chart-stat-label { font-size: 9px; color: var(--text3); font-family: var(--mono); text-transform: uppercase; letter-spacing: 0.05em; }
-    .chart-stat-value { font-size: 14px; font-family: var(--mono); font-weight: 600; }
+    .chart-stat { display: flex; gap: 0; margin-top: 12px; border-top: 1px solid var(--border); padding-top: 10px; }
+    .chart-stat-item { display: flex; flex-direction: column; gap: 3px; flex: 1; min-width: 0; }
+    .chart-stat-label { font-size: 8px; color: var(--text3); font-family: var(--mono); text-transform: uppercase; letter-spacing: 0.06em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .chart-stat-value { font-size: 13px; font-family: var(--mono); font-weight: 600; white-space: nowrap; }
     .chart-stat-value.pos { color: var(--green); }
     .chart-stat-value.neg { color: var(--red); }
 
@@ -673,7 +673,7 @@
             <span class="chart-stat-value" id="chart-low">–</span>
           </div>
           <div class="chart-stat-item">
-            <span class="chart-stat-label">Max Drawdown</span>
+            <span class="chart-stat-label">Drawdown</span>
             <span class="chart-stat-value neg" id="chart-drawdown">–</span>
           </div>
         </div>
@@ -1295,20 +1295,20 @@ function drawChart(allData) {
     ctx.fillText((val >= 0 ? '+' : '') + val.toFixed(1) + '%', pad.left - 4, y + 3);
   }
 
-  // X axis labels
+  // X axis labels — only show 3 to avoid overlap
   ctx.fillStyle = 'rgba(255,255,255,0.3)';
   ctx.font = '9px monospace';
-  ctx.textAlign = 'center';
-  const labelCount = Math.min(5, data.length);
-  for (let i = 0; i < labelCount; i++) {
-    const idx = Math.floor(i * (data.length - 1) / (labelCount - 1));
-    const d   = data[idx];
-    const x   = xOf(d.t);
+  const labelIndices = [0, Math.floor((data.length - 1) / 2), data.length - 1];
+  const aligns = ['left', 'center', 'right'];
+  labelIndices.forEach((idx, i) => {
+    const d     = data[idx];
+    const x     = xOf(d.t);
     const label = chartRange === '1D'
       ? new Date(d.t).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false })
       : new Date(d.t).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    ctx.textAlign = aligns[i];
     ctx.fillText(label, x, H - 6);
-  }
+  });
 
   // Gradient fill
   const grad = ctx.createLinearGradient(0, pad.top, 0, pad.top + gH);
