@@ -533,6 +533,39 @@
   ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
 
+    /* ── Position Cards ─────────────────────────────────────────── */
+    .pos-card {
+      padding: 12px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .pos-card:last-child { border-bottom: none; }
+    .pos-card-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 8px;
+    }
+    .pos-left { display: flex; flex-direction: column; gap: 3px; }
+    .pos-right { display: flex; flex-direction: column; align-items: flex-end; gap: 3px; }
+    .pos-symbol { font-family: var(--mono); font-size: 15px; font-weight: 700; color: var(--text1); }
+    .pos-meta { font-family: var(--mono); font-size: 10px; color: var(--text3); }
+    .pos-price { font-family: var(--mono); font-size: 15px; font-weight: 600; color: var(--text1); }
+    .pos-pl { font-family: var(--mono); font-size: 11px; font-weight: 600; }
+    .pos-pl.pl-pos { color: var(--green); }
+    .pos-pl.pl-neg { color: var(--red); }
+    .pos-card-bottom {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+    }
+    .pos-stop-info { flex: 1; display: flex; flex-direction: column; gap: 4px; }
+    .pos-stop-label { font-family: var(--mono); font-size: 9px; color: var(--text3); }
+    .pos-stop-bar-track {
+      height: 3px; background: rgba(255,255,255,0.08); border-radius: 2px; overflow: hidden;
+    }
+    .pos-stop-bar-fill { height: 100%; border-radius: 2px; transition: width 0.3s; }
+
     /* ── Sell Button ───────────────────────────────────────────── */
     .sell-btn {
       font-family: var(--mono); font-size: 9px; padding: 3px 8px;
@@ -557,7 +590,7 @@
     }
     .chart-wrap { position: relative; height: 180px; margin-top: 12px; }
     canvas#perf-chart { width: 100% !important; height: 180px !important; }
-    .chart-stat { display: flex; gap: 0; margin-top: 12px; border-top: 1px solid var(--border); padding-top: 10px; }
+    .chart-stat { display: flex; gap: 4px; margin-top: 12px; border-top: 1px solid var(--border); padding-top: 10px; }
     .chart-stat-item { display: flex; flex-direction: column; gap: 3px; flex: 1; min-width: 0; }
     .chart-stat-label { font-size: 8px; color: var(--text3); font-family: var(--mono); text-transform: uppercase; letter-spacing: 0.06em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .chart-stat-value { font-size: 13px; font-family: var(--mono); font-weight: 600; white-space: nowrap; }
@@ -916,29 +949,40 @@ function renderPositions(positions) {
   document.getElementById('positions-count').textContent = `${positions.length} position${positions.length !== 1 ? 's' : ''}`;
   document.getElementById('m-positions').textContent = positions.length;
 
-  const rows = positions.map(p => {
-    const pl = parseFloat(p.unrealizedPL);
+  const cards = positions.map(p => {
+    const pl      = parseFloat(p.unrealizedPL);
     const plClass = pl >= 0 ? 'pl-pos' : 'pl-neg';
-    const plSign = pl >= 0 ? '+' : '';
+    const plSign  = pl >= 0 ? '+' : '';
+    const dropPct = parseFloat(p.dropFromPeak);
+    const stopPct = parseFloat(p.trailingStop);
+    const stopProgress = Math.min(100, (dropPct / stopPct) * 100);
+    const stopColor = stopProgress > 75 ? '#ef4444' : stopProgress > 50 ? '#f59e0b' : '#4ade80';
     return `
-      <tr>
-        <td>${p.symbol}</td>
-        <td>${p.qty}</td>
-        <td>${fmt$(p.avgEntry)}</td>
-        <td>${fmt$(p.currentPrice)}</td>
-        <td class="${plClass}">${plSign}${fmt$(p.unrealizedPL)}</td>
-        <td class="${plClass}">${plSign}${p.unrealizedPLPct}</td>
-        <td><button class="sell-btn" onclick="manualSell('${p.symbol}', '${p.qty}')">SELL</button></td>
-      </tr>
+      <div class="pos-card">
+        <div class="pos-card-top">
+          <div class="pos-left">
+            <span class="pos-symbol">${p.symbol}</span>
+            <span class="pos-meta">${p.qty} shares &nbsp;·&nbsp; entry ${fmt$(p.avgEntry)}</span>
+          </div>
+          <div class="pos-right">
+            <span class="pos-price">${fmt$(p.currentPrice)}</span>
+            <span class="pos-pl ${plClass}">${plSign}${fmt$(p.unrealizedPL)} (${plSign}${p.unrealizedPLPct})</span>
+          </div>
+        </div>
+        <div class="pos-card-bottom">
+          <div class="pos-stop-info">
+            <span class="pos-stop-label">Stop ${fmt$(p.trailingStopAt)} · ${(dropPct).toFixed(1)}% from peak</span>
+            <div class="pos-stop-bar-track">
+              <div class="pos-stop-bar-fill" style="width:${stopProgress}%; background:${stopColor};"></div>
+            </div>
+          </div>
+          <button class="sell-btn" onclick="manualSell('${p.symbol}', '${p.qty}')">SELL</button>
+        </div>
+      </div>
     `;
   }).join('');
 
-  document.getElementById('positions-body').innerHTML = `
-    <table class="positions-table">
-      <thead><tr><th>Symbol</th><th>Qty</th><th>Entry</th><th>Price</th><th>P&L</th><th>%</th><th></th></tr></thead>
-      <tbody>${rows}</tbody>
-    </table>
-  `;
+  document.getElementById('positions-body').innerHTML = cards;
 }
 
 function renderOptions(optStatus) {
