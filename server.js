@@ -35,6 +35,7 @@ app.get('/proxy/status',         injectKey, (req, res, next) => { req.url = '/st
 app.get('/proxy/log',            injectKey, (req, res, next) => { req.url = '/log';     next(); }, ordersRouter);
 app.get('/proxy/options-status', injectKey, (req, res, next) => { req.url = '/status';  next(); }, optionsRouter);
 app.post('/proxy/poll-now',      injectKey, (req, res, next) => { req.url = '/poll-now'; next(); }, ordersRouter);
+app.post('/proxy/sell/:symbol',  injectKey, (req, res, next) => { req.url = '/sell/' + req.params.symbol; next(); }, ordersRouter);
 
 // ── Protected API routes — key required ───────────────────────────────────────
 function requireKey(req, res, next) {
