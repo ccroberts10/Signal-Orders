@@ -146,6 +146,34 @@ router.post('/resume', async (req, res) => {
   res.json({ halted: false });
 });
 
+// Manual market sell — sells entire position at market price
+router.post('/sell/:symbol', async (req, res) => {
+  const { symbol } = req.params;
+  try {
+    const om       = getOM();
+    const position = await om.broker.getPosition(symbol);
+    if (!position) return res.status(404).json({ error: `No position in ${symbol}` });
+
+    const qty = parseInt(position.qty);
+    const orderParams = {
+      symbol,
+      qty:           qty.toString(),
+      side:          'sell',
+      type:          'market',
+      time_in_force: 'day',
+    };
+
+    const order = await om.broker.submitOrder(orderParams);
+    delete om.positionPeaks[symbol];
+    const { savePeaks } = require('../orderManager');
+    console.log(`[ORDER-MGR] Manual sell: ${symbol} ${qty} shares @ market`);
+    res.json({ success: true, symbol, qty, orderId: order.id });
+  } catch (e) {
+    console.error(`[ORDER-MGR] Manual sell failed: ${symbol}`, e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
 router.get('/log', (req, res) => {
   const log = getOM().log;
   res.json({
