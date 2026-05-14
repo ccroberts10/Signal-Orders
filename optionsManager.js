@@ -1,23 +1,28 @@
 /**
- * SIGNAL Options Manager — Optimized V2
+ * SIGNAL Options Manager — V3
+ *
+ * Changes from V2:
+ *   - Full diagnostic logging in evaluateOptionsStrategy so every skip is explained
+ *   - SPX market regime filter via gex-app API (hard block in TRENDING regime)
+ *   - CTA composite block when dealers + trend followers both against trade
+ *   - Fail-open guarantee: if gex-app unreachable, all trades proceed normally
+ *   - CC path now correctly checks share count before attempting
+ *   - Long call path correctly only runs when no position exists
  *
  * Strategy selection by score:
  *   Score 90-100 + no position  → Buy long call (momentum capture)
  *   Score 75-89  + no position  → Sell CSP (premium collection, bullish entry)
- *   Score 55-89  + has position → Sell covered call (premium on existing holdings)
+ *   Score 55-89  + has position + 100+ shares → Sell covered call
  *   Score 90-100 + has position → Hold for upside (don't cap big winners)
  *   Score < 55                  → No entry
  *
- * Improvements over V1:
- *   - Relaxed filters: lower min OI (10), lower min volume (1), wider spread (15%)
- *   - Lower min yield (8%) to find more trades
- *   - GEX-anchored strikes with wider tolerance ($5 wall tolerance)
- *   - Long calls enabled on 90+ scores
- *   - Better error logging to diagnose skips
- *   - Auto-roll logic at 7 DTE
+ * SPX Regime blocks (hard block, fail-open):
+ *   TRENDING + below flip       → Block long calls
+ *   TRENDING (any)              → Block CSP
+ *   TRENDING + CTA short        → Block new covered calls
  */
 
-const EventEmitter   = require('events');
+const EventEmitter    = require('events');
 const { GEXAnalyzer } = require('./gexAnalyzer');
 
 const OPTIONS_CONFIG = {
@@ -26,40 +31,40 @@ const OPTIONS_CONFIG = {
   strategies: {
     cashSecuredPut: true,
     coveredCall:    true,
-    longCall:       true,   // Enabled — buys on 90+ scores
+    longCall:       true,
   },
 
-  // Score thresholds for strategy selection
-  longCallMinScore:    90,   // Buy calls when score >= 90
-  cspMinScore:         75,   // Sell CSP when score >= 75, no position
-  ccMinScore:          55,   // Sell CC when score >= 55, has position
-  holdForUpsideScore:  90,   // Don't sell CC on existing position if score >= 90
+  // Score thresholds
+  longCallMinScore:   90,
+  cspMinScore:        75,
+  ccMinScore:         55,
+  holdForUpsideScore: 90,
 
-  // Contract selection — relaxed filters
-  targetDTE:       [21, 60],    // Wider window: 21-60 days
-  targetDelta:     [0.20, 0.45],// Wider delta range
-  longCallDelta:   [0.40, 0.70],// Long calls: 40-70 delta
-  minOpenInterest: 10,          // Relaxed from 50
-  minVolume:       1,           // Relaxed from 5
-  maxSpreadPct:    0.15,        // Relaxed from 0.10
+  // Contract selection
+  targetDTE:       [21, 60],
+  targetDelta:     [0.20, 0.45],
+  longCallDelta:   [0.40, 0.70],
+  minOpenInterest: 10,
+  minVolume:       1,
+  maxSpreadPct:    0.15,
 
   // GEX settings
   useGEX:           true,
-  gexWallTolerance: 5.0,        // Wider tolerance: within $5 of GEX wall
+  gexWallTolerance: 5.0,
 
   // Sizing
   maxContractsPerTicker: 1,
-  maxOptionsRiskPct:     0.05,  // Max 5% of portfolio per long call
-  cspCashRequirement:    1.0,   // Must have full cash to secure put
+  maxOptionsRiskPct:     0.05,
+  cspCashRequirement:    1.0,
 
-  // Premium filters — relaxed
-  minAnnualizedYield: 0.08,    // Relaxed from 14% to 8%
-  minPremiumDollars:  15,      // Relaxed from 25 to 15
+  // Premium filters
+  minAnnualizedYield: 0.08,
+  minPremiumDollars:  15,
 
   // Management
-  takeProfitPct:     0.50,     // Close short options at 50% profit
-  stopLossPct:       2.00,     // Close if 2x the credit received
-  rollDTEThreshold:  7,        // Roll when 7 days left
+  takeProfitPct:    0.50,
+  stopLossPct:      2.00,
+  rollDTEThreshold: 7,
 
   // Guards
   minStockPrice:         1.00,
@@ -133,7 +138,7 @@ class StrikeSelector {
         return { sym, snap, mid, spread, strike, dte, oi, vol, annYield, delta: Math.abs(snap.greeks?.delta || 0) };
       })
       .filter(c => {
-        const passes = (
+        return (
           c.oi     >= config.minOpenInterest &&
           c.vol    >= config.minVolume &&
           c.spread <= config.maxSpreadPct &&
@@ -142,20 +147,18 @@ class StrikeSelector {
           c.annYield   >= config.minAnnualizedYield &&
           c.dte    >= config.targetDTE[0]
         );
-        return passes;
       });
   }
 
   static selectCSPStrike(snapshots, stockPrice, config, gexData = null) {
     const candidates = this._mapContracts(snapshots, 'put', stockPrice, config)
-      .filter(c => c.strike < stockPrice); // OTM puts only
+      .filter(c => c.strike < stockPrice);
 
     if (!candidates.length) return null;
 
-    // GEX wall anchor
     if (config.useGEX && gexData?.putWalls?.length) {
-      const putWall    = gexData.putWalls[0].strike;
-      const inNegZone  = (gexData.negZones || []).some(z => Math.abs(z.strike - putWall) < config.gexWallTolerance);
+      const putWall   = gexData.putWalls[0].strike;
+      const inNegZone = (gexData.negZones || []).some(z => Math.abs(z.strike - putWall) < config.gexWallTolerance);
       if (!inNegZone) {
         const anchored = candidates
           .filter(c => Math.abs(c.strike - putWall) <= config.gexWallTolerance)
@@ -176,7 +179,6 @@ class StrikeSelector {
 
     if (!candidates.length) return null;
 
-    // GEX wall anchor
     if (config.useGEX && gexData?.callWalls?.length) {
       const callWall = gexData.callWalls[0].strike;
       const anchored = candidates
@@ -230,15 +232,16 @@ class OptionsManager extends EventEmitter {
     if (!this.config.enabled) {
       this.logger.warn('OptionsManager: disabled. Set OPTIONS_ENABLED=true to activate.');
     } else {
-      this.logger.info('OptionsManager V2 initialized', {
-        strategies:     this.config.strategies,
-        gexActive:      !!this.gex,
-        minYield:       (this.config.minAnnualizedYield * 100).toFixed(0) + '%',
-        deltaRange:     this.config.targetDelta.join('-'),
-        dteWindow:      this.config.targetDTE.join('-'),
-        longCallScore:  this.config.longCallMinScore,
-        cspScore:       this.config.cspMinScore,
-        ccScore:        this.config.ccMinScore,
+      this.logger.info('OptionsManager V3 initialized', {
+        strategies:    this.config.strategies,
+        gexActive:     !!this.gex,
+        minYield:      (this.config.minAnnualizedYield * 100).toFixed(0) + '%',
+        deltaRange:    this.config.targetDelta.join('-'),
+        dteWindow:     this.config.targetDTE.join('-'),
+        longCallScore: this.config.longCallMinScore,
+        cspScore:      this.config.cspMinScore,
+        ccScore:       this.config.ccMinScore,
+        gexAppUrl:     process.env.GEX_APP_URL || 'https://gex-scanner-production.up.railway.app',
       });
     }
   }
@@ -289,6 +292,50 @@ class OptionsManager extends EventEmitter {
     }
   }
 
+  // ── SPX Market Regime Check ───────────────────────────────────────────────
+  // Calls gex-app for SPX regime + CTA. Returns null on ANY failure (fail-open).
+  // A monitoring service must never block live trading due to its own outage.
+
+  async _checkSPXRegime() {
+    const url = (process.env.GEX_APP_URL || 'https://gex-scanner-production.up.railway.app') + '/api/gex';
+    try {
+      const ctrl    = new AbortController();
+      const timeout = setTimeout(() => ctrl.abort(), 4000); // 4s max
+      const res     = await fetch(url, {
+        signal:  ctrl.signal,
+        headers: { 'Accept': 'application/json' },
+      });
+      clearTimeout(timeout);
+
+      if (!res.ok) {
+        this.logger.warn(`[SPX-REGIME] gex-app HTTP ${res.status} — proceeding without filter`);
+        return null;
+      }
+
+      const data = await res.json();
+
+      if (!data || data.loading || data.error || !data.regime || data.regime === 'UNAVAILABLE') {
+        this.logger.warn('[SPX-REGIME] no usable data — proceeding without filter');
+        return null;
+      }
+
+      const regime    = data.regime;
+      const netGEX    = data.netGEXBillions || 0;
+      const flipPoint = data.flipPoint       || null;
+      const spot      = data.spotPrice       || null;
+      const aboveFlip = (flipPoint && spot)  ? spot > flipPoint : null;
+      const ctaComposite = (data.marketContext && data.marketContext.ctaComposite != null)
+        ? data.marketContext.ctaComposite : null;
+
+      this.logger.info('[SPX-REGIME]', { regime, netGEX, flipPoint, spot, aboveFlip, ctaComposite });
+      return { regime, netGEX, flipPoint, spot, aboveFlip, ctaComposite };
+
+    } catch (e) {
+      this.logger.warn(`[SPX-REGIME] unreachable (${e.message}) — proceeding without filter`);
+      return null;
+    }
+  }
+
   async _submitOptionsOrder({ symbol, contractSymbol, side, qty, orderType, limitPrice, strategy }) {
     const orderParams = {
       symbol:        contractSymbol,
@@ -330,7 +377,6 @@ class OptionsManager extends EventEmitter {
 
     const best = StrikeSelector.selectCSPStrike(snapshots, stockPrice, this.config, gexData);
     if (!best) {
-      // Log what was available to help diagnose
       const allPuts = Object.entries(snapshots).filter(([s, snap]) => {
         const strike = parseFloat(snap.details?.strike_price || '0');
         return strike < stockPrice && snap.greeks?.delta;
@@ -433,7 +479,6 @@ class OptionsManager extends EventEmitter {
     const maxSpend   = parseFloat(account.equity) * this.config.maxOptionsRiskPct;
     const gexData    = await this._getGEX(symbol, stockPrice);
 
-    // Skip long calls in negative GEX regime
     if (gexData?.regime === 'VOLATILE') {
       this.logger.warn(`${symbol} negative GEX — skipping long call`);
       return { action: 'SKIP', symbol, reason: 'Negative GEX regime' };
@@ -457,18 +502,18 @@ class OptionsManager extends EventEmitter {
     });
 
     const result = {
-      strategy:    'LONG_CALL',
+      strategy:       'LONG_CALL',
       symbol,
       contractSymbol: best.sym,
-      strike:      best.strike,
-      dte:         best.dte,
-      delta:       best.delta.toFixed(3),
-      premium:     best.snap.latestQuote.ap.toFixed(2),
-      totalCost:   cost.toFixed(2),
-      maxLoss:     cost.toFixed(2),
-      breakeven:   (best.strike + best.snap.latestQuote.ap).toFixed(2),
-      gexRegime:   gexData?.regime || 'UNKNOWN',
-      orderId:     order.id,
+      strike:         best.strike,
+      dte:            best.dte,
+      delta:          best.delta.toFixed(3),
+      premium:        best.snap.latestQuote.ap.toFixed(2),
+      totalCost:      cost.toFixed(2),
+      maxLoss:        cost.toFixed(2),
+      breakeven:      (best.strike + best.snap.latestQuote.ap).toFixed(2),
+      gexRegime:      gexData?.regime || 'UNKNOWN',
+      orderId:        order.id,
     };
     this.logger.info('Long call submitted', result);
     return result;
@@ -481,37 +526,121 @@ class OptionsManager extends EventEmitter {
 
     const { hasPosition = false, earningsSoon = false } = context;
 
+    // ── Gate 1: Earnings blackout ─────────────────────────────────────────
     if (earningsSoon) {
-      this.logger.info('Skipping options — earnings blackout', { symbol });
+      this.logger.info(`[OPTIONS] ${symbol} SKIP — earnings blackout`);
       return { action: 'SKIP', reason: 'earnings_blackout', symbol };
     }
 
-    this.logger.info('Evaluating options strategy', { symbol, signalScore, hasPosition });
+    // ── Gate 2: SPX market regime (hard block, fail-open) ─────────────────
+    const spx = await this._checkSPXRegime();
+    if (spx) {
+      const isTrending  = spx.regime === 'TRENDING';
+      const isMildTrend = spx.regime === 'MILD TREND';
+      const ctaShort    = spx.ctaComposite !== null && spx.ctaComposite < -25;
 
-    // Score 90+ with existing position — hold for upside, don't cap with CC
-    if (signalScore >= this.config.holdForUpsideScore && hasPosition) {
-      return { action: 'HOLD_FOR_UPSIDE', symbol, signalScore, reason: `Score ${signalScore} >= ${this.config.holdForUpsideScore} — riding upside` };
+      // Block long calls in bearish trending regime (below flip)
+      if ((isTrending || isMildTrend) && spx.aboveFlip === false && !hasPosition) {
+        this.logger.warn(`[OPTIONS] ${symbol} BLOCK long call — ${spx.regime}, below flip ${spx.flipPoint}`);
+        return {
+          action: 'SKIP', symbol, signalScore,
+          reason: `SPX_REGIME_BLOCK: ${spx.regime} + below flip ${spx.flipPoint}`,
+          spxRegime: spx.regime, spxFlip: spx.flipPoint,
+        };
+      }
+
+      // Block CSP in full trending regime
+      if (isTrending && !hasPosition) {
+        this.logger.warn(`[OPTIONS] ${symbol} BLOCK CSP — ${spx.regime} (${spx.netGEX}B)`);
+        return {
+          action: 'SKIP', symbol, signalScore,
+          reason: `SPX_REGIME_BLOCK: ${spx.regime} — too volatile for cash-secured puts`,
+          spxRegime: spx.regime, spxNetGEX: spx.netGEX,
+        };
+      }
+
+      // Block new covered calls in trending + CTA short
+      if (isTrending && ctaShort && hasPosition) {
+        this.logger.warn(`[OPTIONS] ${symbol} BLOCK CC — ${spx.regime} + CTA short (${spx.ctaComposite})`);
+        return {
+          action: 'SKIP', symbol, signalScore,
+          reason: `SPX_REGIME_BLOCK: ${spx.regime} + CTA short ${spx.ctaComposite}`,
+          spxRegime: spx.regime, ctaComposite: spx.ctaComposite,
+        };
+      }
     }
 
-    // Score 90+ no position — buy call for momentum capture
+    // ── Diagnostic log — shows exactly which path each ticker takes ────────
+    this.logger.info(`[OPTIONS] ${symbol} evaluating`, {
+      score:       signalScore,
+      hasPosition,
+      thresholds: {
+        holdUpside: this.config.holdForUpsideScore,
+        longCall:   this.config.longCallMinScore,
+        csp:        this.config.cspMinScore,
+        cc:         this.config.ccMinScore,
+      },
+      path: hasPosition
+        ? (signalScore >= this.config.holdForUpsideScore ? 'HOLD_FOR_UPSIDE' :
+           signalScore >= this.config.ccMinScore         ? 'TRY_CC' : 'NO_ENTRY')
+        : (signalScore >= this.config.longCallMinScore   ? 'TRY_LONG_CALL' :
+           signalScore >= this.config.cspMinScore        ? 'TRY_CSP' : 'NO_ENTRY'),
+      spxRegime: spx?.regime || 'N/A',
+    });
+
+    // ── Score 90+ with existing position: hold for upside ─────────────────
+    if (signalScore >= this.config.holdForUpsideScore && hasPosition) {
+      this.logger.info(`[OPTIONS] ${symbol} HOLD_FOR_UPSIDE — score ${signalScore} >= ${this.config.holdForUpsideScore}`);
+      return {
+        action: 'HOLD_FOR_UPSIDE', symbol, signalScore,
+        reason: `Score ${signalScore} >= ${this.config.holdForUpsideScore} — riding upside`,
+      };
+    }
+
+    // ── Score 90+ no position: buy long call ──────────────────────────────
     if (signalScore >= this.config.longCallMinScore && !hasPosition && this.config.strategies.longCall) {
+      this.logger.info(`[OPTIONS] ${symbol} → LONG_CALL — score ${signalScore}`);
       return this.buyLongCall(symbol);
     }
 
-    // Score 75-89 no position — sell CSP for premium collection
+    // ── Score 75-89 no position: sell CSP ────────────────────────────────
     if (signalScore >= this.config.cspMinScore && !hasPosition && this.config.strategies.cashSecuredPut) {
+      this.logger.info(`[OPTIONS] ${symbol} → CSP — score ${signalScore}`);
       return this.sellCashSecuredPut(symbol);
     }
 
-    // Score 55-89 with position — sell covered call for premium
+    // ── Score 55-89 with position: sell covered call ──────────────────────
+    // Check share count first before attempting — avoids the silent skip
     if (signalScore >= this.config.ccMinScore && hasPosition && this.config.strategies.coveredCall) {
-      return this.sellCoveredCall(symbol);
+      // Pre-check shares so we log a clear reason instead of throwing inside sellCoveredCall
+      try {
+        const position = await this.broker.getPosition(symbol);
+        const shares   = position ? parseInt(position.qty) : 0;
+        if (shares < 100) {
+          this.logger.info(`[OPTIONS] ${symbol} SKIP CC — only ${shares} shares (need 100+)`);
+          return {
+            action: 'SKIP', symbol, signalScore,
+            reason: `Insufficient shares for CC: have ${shares}, need 100`,
+          };
+        }
+        this.logger.info(`[OPTIONS] ${symbol} → CC — score ${signalScore}, shares ${shares}`);
+        return this.sellCoveredCall(symbol);
+      } catch (e) {
+        this.logger.info(`[OPTIONS] ${symbol} SKIP CC — ${e.message}`);
+        return { action: 'SKIP', symbol, signalScore, reason: e.message };
+      }
     }
 
-    return { action: 'NO_ENTRY', symbol, signalScore, reason: `Score ${signalScore} too low or no matching strategy` };
+    // ── No matching strategy ──────────────────────────────────────────────
+    this.logger.info(`[OPTIONS] ${symbol} NO_ENTRY — score ${signalScore}, hasPosition ${hasPosition}`);
+    return {
+      action: 'NO_ENTRY', symbol, signalScore,
+      reason: `Score ${signalScore} below thresholds or no matching strategy`,
+    };
   }
 
   // ── Position Management ───────────────────────────────────────────────────
+  // NOT gated by regime — always runs regardless of SPX environment
 
   async manageOpenPositions() {
     this._assertEnabled();
@@ -541,12 +670,13 @@ class OptionsManager extends EventEmitter {
   }
 
   async getOptionsStatus() {
-    const positions        = await this.broker.getAllPositions();
-    const opts             = positions.filter(p => p.asset_class === 'us_option');
+    const positions = await this.broker.getAllPositions();
+    const opts      = positions.filter(p => p.asset_class === 'us_option');
     return {
-      enabled:       this.config.enabled,
-      strategies:    this.config.strategies,
-      gexActive:     !!this.gex && this.config.useGEX,
+      enabled:    this.config.enabled,
+      strategies: this.config.strategies,
+      gexActive:  !!this.gex && this.config.useGEX,
+      gexAppUrl:  process.env.GEX_APP_URL || 'https://gex-scanner-production.up.railway.app',
       scoreThresholds: {
         longCall:      this.config.longCallMinScore,
         csp:           this.config.cspMinScore,
@@ -554,11 +684,11 @@ class OptionsManager extends EventEmitter {
         holdForUpside: this.config.holdForUpsideScore,
       },
       filters: {
-        minYield:    (this.config.minAnnualizedYield*100).toFixed(0)+'%',
-        minOI:       this.config.minOpenInterest,
-        maxSpread:   (this.config.maxSpreadPct*100).toFixed(0)+'%',
-        dteWindow:   this.config.targetDTE.join('-')+' days',
-        deltaRange:  this.config.targetDelta.join('-'),
+        minYield:   (this.config.minAnnualizedYield*100).toFixed(0)+'%',
+        minOI:      this.config.minOpenInterest,
+        maxSpread:  (this.config.maxSpreadPct*100).toFixed(0)+'%',
+        dteWindow:  this.config.targetDTE.join('-')+' days',
+        deltaRange: this.config.targetDelta.join('-'),
       },
       openPositions: opts.length,
       positions: opts.map(p => ({
