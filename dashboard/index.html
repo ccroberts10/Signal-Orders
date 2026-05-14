@@ -533,6 +533,16 @@
   ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
 
+    /* ── Sell Button ───────────────────────────────────────────── */
+    .sell-btn {
+      font-family: var(--mono); font-size: 9px; padding: 3px 8px;
+      border: 1px solid #ef4444; border-radius: 4px;
+      background: transparent; color: #ef4444; cursor: pointer;
+      transition: all 0.15s; white-space: nowrap;
+    }
+    .sell-btn:hover { background: #ef4444; color: #000; }
+    .sell-btn:active { transform: scale(0.96); }
+
     /* ── Performance Chart ─────────────────────────────────────── */
     .chart-card { margin: 0 0 24px; }
     .chart-toggles { display: flex; gap: 6px; }
@@ -918,13 +928,14 @@ function renderPositions(positions) {
         <td>${fmt$(p.currentPrice)}</td>
         <td class="${plClass}">${plSign}${fmt$(p.unrealizedPL)}</td>
         <td class="${plClass}">${plSign}${p.unrealizedPLPct}</td>
+        <td><button class="sell-btn" onclick="manualSell('${p.symbol}', '${p.qty}')">SELL</button></td>
       </tr>
     `;
   }).join('');
 
   document.getElementById('positions-body').innerHTML = `
     <table class="positions-table">
-      <thead><tr><th>Symbol</th><th>Qty</th><th>Entry</th><th>Price</th><th>P&L</th><th>%</th></tr></thead>
+      <thead><tr><th>Symbol</th><th>Qty</th><th>Entry</th><th>Price</th><th>P&L</th><th>%</th><th></th></tr></thead>
       <tbody>${rows}</tbody>
     </table>
   `;
@@ -1118,6 +1129,27 @@ async function triggerResume() {
     });
     await refresh();
   } catch(e) { alert('Resume request failed: ' + e.message); }
+}
+
+async function manualSell(symbol, qty) {
+  const confirmed = confirm(`Sell ALL ${qty} shares of ${symbol} at market price?\n\nThis cannot be undone.`);
+  if (!confirmed) return;
+
+  try {
+    const res  = await fetch(`/proxy/sell/${symbol}`, {
+      method:  'POST',
+      headers: headers(),
+    });
+    const data = await res.json();
+    if (data.success) {
+      alert(`✓ Sell order submitted for ${qty} shares of ${symbol}`);
+      await refresh();
+    } else {
+      alert(`Error: ${data.error}`);
+    }
+  } catch (e) {
+    alert(`Sell failed: ${e.message}`);
+  }
 }
 
 loadConfig();
