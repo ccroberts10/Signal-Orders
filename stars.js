@@ -89,16 +89,20 @@ async function fetchSPYBars(timeframe = '2Min', limit = 30) {
 }
 
 async function fetchVWAP() {
-  // Use 1-day intraday bars to calculate VWAP
-  const bars = await fetchSPYBars('1Min', 390);
-  if (!bars.length) return null;
-  let cumTPV = 0, cumVol = 0;
-  for (const b of bars) {
-    const tp = (b.h + b.l + b.c) / 3;
-    cumTPV += tp * b.v;
-    cumVol += b.v;
+  try {
+    const bars = await fetchSPYBars('1Min', 390);
+    if (!bars.length) return null;
+    let cumTPV = 0, cumVol = 0;
+    for (const b of bars) {
+      const tp = (b.h + b.l + b.c) / 3;
+      cumTPV += tp * b.v;
+      cumVol += b.v;
+    }
+    return cumVol > 0 ? cumTPV / cumVol : null;
+  } catch (e) {
+    console.warn('[STARS] VWAP fetch failed:', e.message);
+    return null;
   }
-  return cumVol > 0 ? cumTPV / cumVol : null;
 }
 
 async function fetchSPY15mBars() {
@@ -363,14 +367,17 @@ async function executeOptionsOrder(direction, score, price, dte = 0) {
 
 async function runScan() {
   try {
+    console.log('[STARS] Running scan...');
     const [bars2m, bars15m, vwap] = await Promise.all([
       fetchSPYBars('2Min', 40),
       fetchSPY15mBars(),
       fetchVWAP(),
     ]);
 
+    console.log(`[STARS] Fetched ${bars2m.length} 2m bars, ${bars15m.length} 15m bars, VWAP=${vwap?.toFixed(2) || 'null'}`);
     const result = scoreSetup(bars2m, bars15m, vwap);
-    if (!result) return;
+    if (!result) { console.log('[STARS] No result from scoreSetup'); return; }
+    console.log(`[STARS] Scores — CALL: ${result.call.score} PUT: ${result.put.score} price: ${result.price?.toFixed(2)} trend: ${result.trend}`);
 
     scannerState.lastScan    = new Date().toISOString();
     scannerState.currentScore = { call: result.call.score, put: result.put.score };
