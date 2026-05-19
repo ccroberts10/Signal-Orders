@@ -533,6 +533,62 @@
   ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
 
+    /* ── Tab Navigation ─────────────────────────────────────────── */
+    .tab-btn {
+      font-family: var(--mono); font-size: 10px; padding: 4px 10px;
+      border: 1px solid var(--border); border-radius: 4px;
+      background: transparent; color: var(--text3); cursor: pointer;
+    }
+    .tab-btn.active { background: var(--accent); color: #000; border-color: var(--accent); }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+
+    /* ── Stars Panel ─────────────────────────────────────────────── */
+    .stars-score-row { display: flex; gap: 12px; margin-bottom: 16px; }
+    .stars-score-box {
+      flex: 1; background: var(--card); border: 1px solid var(--border);
+      border-radius: 8px; padding: 12px; text-align: center;
+    }
+    .stars-score-label { font-size: 9px; font-family: var(--mono); color: var(--text3); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 4px; }
+    .stars-score-value { font-size: 28px; font-family: var(--mono); font-weight: 700; }
+    .stars-score-value.call { color: var(--green); }
+    .stars-score-value.put  { color: var(--red); }
+    .stars-score-value.low  { color: var(--text3); }
+    .stars-signal-bar {
+      padding: 10px 14px; border-radius: 6px; margin-bottom: 12px;
+      font-family: var(--mono); font-size: 12px; font-weight: 600;
+    }
+    .stars-signal-bar.call { background: rgba(74,222,128,0.15); border: 1px solid rgba(74,222,128,0.3); color: var(--green); }
+    .stars-signal-bar.put  { background: rgba(239,68,68,0.15);  border: 1px solid rgba(239,68,68,0.3);  color: var(--red); }
+    .stars-signal-bar.none { background: rgba(255,255,255,0.04); border: 1px solid var(--border); color: var(--text3); }
+    .stars-conditions { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; margin-bottom: 16px; }
+    .stars-cond {
+      display: flex; align-items: center; gap: 6px;
+      font-family: var(--mono); font-size: 10px; color: var(--text3);
+      padding: 5px 8px; background: var(--card); border-radius: 4px;
+      border: 1px solid var(--border);
+    }
+    .stars-cond.pass { color: var(--text1); border-color: rgba(74,222,128,0.3); }
+    .stars-cond.gate { font-weight: 700; }
+    .stars-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--border); flex-shrink: 0; }
+    .stars-dot.pass { background: var(--green); }
+    .stars-dot.fail { background: rgba(255,255,255,0.15); }
+    .stars-meta { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
+    .stars-meta-item { display: flex; flex-direction: column; gap: 2px; }
+    .stars-meta-label { font-size: 8px; font-family: var(--mono); color: var(--text3); text-transform: uppercase; }
+    .stars-meta-value { font-size: 12px; font-family: var(--mono); color: var(--text1); }
+    .stars-log-row {
+      padding: 8px 0; border-bottom: 1px solid var(--border);
+      font-family: var(--mono); font-size: 11px;
+    }
+    .stars-log-row:last-child { border-bottom: none; }
+    .stars-scan-btn {
+      width: 100%; padding: 10px; font-family: var(--mono); font-size: 11px;
+      background: rgba(255,255,255,0.06); border: 1px solid var(--border);
+      border-radius: 6px; color: var(--text1); cursor: pointer; margin-bottom: 16px;
+    }
+    .stars-scan-btn:hover { background: rgba(255,255,255,0.1); }
+
     /* ── Position Cards ─────────────────────────────────────────── */
     .pos-card {
       padding: 12px 0;
@@ -645,6 +701,8 @@
     </span>
     <span class="last-updated" id="last-updated">–</span>
     <button class="refresh-btn" onclick="refresh()">↻ Refresh</button>
+      <button class="tab-btn" id="tab-main" onclick="setTab('main')">SIGNAL</button>
+      <button class="tab-btn active" id="tab-stars" onclick="setTab('stars')">★ STARS</button>
     <button class="refresh-btn" onclick="openSettings()" style="border-color: var(--border);">Settings</button>
   </div>
 </header>
@@ -682,6 +740,55 @@
       </div>
     </div>
 
+
+    <!-- Tab wrapper -->
+    <div class="tab-content active" id="tab-stars-content">
+
+    <!-- Stars Scanner -->
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">★ Reversal Stars — SPY</span>
+        <span id="stars-last-scan" style="font-family:var(--mono);font-size:9px;color:var(--text3)">–</span>
+      </div>
+      <div class="card-body">
+        <div style="display:flex;gap:8px;margin-bottom:10px;align-items:center;">
+          <button class="stars-scan-btn" style="margin:0;flex:1" onclick="starsScanNow()">▶ Scan Now</button>
+          <div style="font-family:var(--mono);font-size:10px;color:var(--text3);text-align:right;white-space:nowrap;">
+            PDT <span id="stars-weekly-trades" style="color:var(--text1);font-weight:700">0</span>/<span id="stars-weekly-max">3</span> this week
+          </div>
+        </div>
+
+        <!-- Signal bar -->
+        <div class="stars-signal-bar none" id="stars-signal-bar">No signal — monitoring</div>
+
+        <!-- Scores -->
+        <div class="stars-score-row">
+          <div class="stars-score-box">
+            <div class="stars-score-label">★ CALL Score</div>
+            <div class="stars-score-value call low" id="stars-call-score">–</div>
+          </div>
+          <div class="stars-score-box">
+            <div class="stars-score-label">★ PUT Score</div>
+            <div class="stars-score-value put low" id="stars-put-score">–</div>
+          </div>
+        </div>
+
+        <!-- Market context -->
+        <div class="stars-meta" id="stars-meta"></div>
+
+        <!-- Conditions grid -->
+        <div style="font-family:var(--mono);font-size:9px;color:var(--text3);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.06em;">Active Setup Conditions</div>
+        <div class="stars-conditions" id="stars-conditions"></div>
+
+        <!-- Signal log -->
+        <div style="font-family:var(--mono);font-size:9px;color:var(--text3);margin:14px 0 6px;text-transform:uppercase;letter-spacing:0.06em;">Signal Log</div>
+        <div id="stars-log"><div class="empty">No signals yet today</div></div>
+      </div>
+    </div>
+
+    </div><!-- end stars tab -->
+
+    <div class="tab-content" id="tab-main-content">
 
     <!-- Performance Chart -->
     <div class="card chart-card">
@@ -1195,6 +1302,151 @@ async function manualSell(symbol, qty) {
     alert(`Sell failed: ${e.message}`);
   }
 }
+
+// ── Tab switching ────────────────────────────────────────────────────────────
+function setTab(tab) {
+  document.getElementById('tab-main-content').classList.toggle('active', tab === 'main');
+  document.getElementById('tab-stars-content').classList.toggle('active', tab === 'stars');
+  document.getElementById('tab-main').classList.toggle('active', tab === 'main');
+  document.getElementById('tab-stars').classList.toggle('active', tab === 'stars');
+  if (tab === 'stars') refreshStars();
+}
+
+// ── Stars scanner ─────────────────────────────────────────────────────────────
+async function refreshStars() {
+  try {
+    const res  = await fetch('/proxy/stars-status');
+    const data = await res.json();
+    renderStars(data);
+  } catch (e) {
+    console.warn('Stars fetch failed:', e.message);
+  }
+}
+
+async function starsScanNow() {
+  const btn = document.querySelector('.stars-scan-btn');
+  if (btn) btn.textContent = 'Scanning…';
+  try {
+    const res  = await fetch('/proxy/stars-scan', { method: 'POST' });
+    const data = await res.json();
+    await refreshStars();
+  } catch (e) { console.warn('Scan failed:', e.message); }
+  if (btn) btn.textContent = '▶ Scan Now';
+}
+
+function renderStars(data) {
+  if (!data) return;
+
+  // Last scan time
+  const lastEl = document.getElementById('stars-last-scan');
+  if (lastEl && data.lastScan) {
+    lastEl.textContent = new Date(data.lastScan).toLocaleTimeString('en-US', { hour:'2-digit', minute:'2-digit', second:'2-digit', hour12:false });
+  }
+
+  // Weekly PDT counter
+  if (data.weekly) {
+    const wtEl = document.getElementById('stars-weekly-trades');
+    const wmEl = document.getElementById('stars-weekly-max');
+    if (wtEl) { wtEl.textContent = data.weekly.tradesThisWeek; wtEl.style.color = data.weekly.limitHit ? 'var(--red)' : 'var(--text1)'; }
+    if (wmEl) wmEl.textContent = data.config?.maxWeeklyTrades || 3;
+  }
+
+  const callScore = data.score?.call || 0;
+  const putScore  = data.score?.put  || 0;
+  const minScore  = data.config?.scoreMin || 7.5;
+
+  // Score displays
+  const callEl = document.getElementById('stars-call-score');
+  const putEl  = document.getElementById('stars-put-score');
+  if (callEl) { callEl.textContent = callScore.toFixed(1); callEl.className = 'stars-score-value call' + (callScore < minScore ? ' low' : ''); }
+  if (putEl)  { putEl.textContent  = putScore.toFixed(1);  putEl.className  = 'stars-score-value put'  + (putScore  < minScore ? ' low' : ''); }
+
+  // Signal bar
+  const sigBar = document.getElementById('stars-signal-bar');
+  if (sigBar) {
+    const callFired = callScore >= minScore;
+    const putFired  = putScore  >= minScore;
+    const trend     = data.meta?.trend || 'neutral';
+    if (callFired || putFired) {
+      const dir      = putFired && (!callFired || putScore >= callScore) ? 'put' : 'call';
+      const score    = dir === 'put' ? putScore : callScore;
+      const wt       = dir === 'call' ? trend === 'bull' : trend === 'bear';
+      sigBar.className   = 'stars-signal-bar ' + dir;
+      sigBar.textContent = `★ ${dir.toUpperCase()} SIGNAL  |  Score ${score.toFixed(1)}  |  ${wt ? '↑ WITH TREND' : '↔ COUNTER-TREND'}`;
+    } else {
+      sigBar.className   = 'stars-signal-bar none';
+      sigBar.textContent = `Monitoring — score ${Math.max(callScore, putScore).toFixed(1)} / ${minScore} needed`;
+    }
+  }
+
+  // Meta
+  const metaEl = document.getElementById('stars-meta');
+  if (metaEl && data.meta) {
+    const m = data.meta;
+    metaEl.innerHTML = [
+      { label: 'SPY', value: m.price ? '$' + m.price.toFixed(2) : '–' },
+      { label: 'VWAP', value: m.vwap ? '$' + m.vwap.toFixed(2) : '–' },
+      { label: 'EMA21', value: m.ema21 ? '$' + m.ema21.toFixed(2) : '–' },
+      { label: 'RSI(7)', value: m.rsi ? m.rsi.toFixed(1) : '–' },
+      { label: 'Vol', value: m.volRatio ? m.volRatio.toFixed(2) + 'x' : '–' },
+      { label: '15m Trend', value: m.trend ? m.trend.toUpperCase() : '–' },
+    ].map(i => `<div class="stars-meta-item"><div class="stars-meta-label">${i.label}</div><div class="stars-meta-value">${i.value}</div></div>`).join('');
+  }
+
+  // Conditions — show whichever setup has higher score
+  const condEl = document.getElementById('stars-conditions');
+  if (condEl && data.conditions) {
+    const useDir  = putScore >= callScore ? 'put' : 'call';
+    const conds   = data.conditions[useDir] || {};
+    const labels  = {
+      sweep:       { label: 'Sweep', gate: true },
+      rejection:   { label: 'Rejection', gate: true },
+      vwapStretch: { label: 'VWAP Stretch', gate: false },
+      emaStretch:  { label: 'EMA Stretch', gate: false },
+      rsi:         { label: 'RSI', gate: false },
+      volume:      { label: 'Volume Spike', gate: false },
+      range:       { label: 'Range Expand', gate: false },
+      macd:        { label: 'MACD', gate: false },
+      bearClose:   { label: 'Bear Close', gate: false },
+      bullClose:   { label: 'Bull Close', gate: false },
+    };
+    condEl.innerHTML = Object.entries(labels)
+      .filter(([k]) => conds[k] !== undefined)
+      .map(([k, v]) => {
+        const pass = conds[k];
+        return `<div class="stars-cond ${pass ? 'pass' : ''} ${v.gate ? 'gate' : ''}">
+          <div class="stars-dot ${pass ? 'pass' : 'fail'}"></div>
+          ${v.label}${v.gate ? ' ★' : ''}
+        </div>`;
+      }).join('');
+  }
+
+  // Signal log
+  const logEl = document.getElementById('stars-log');
+  if (logEl) {
+    if (!data.signals || !data.signals.length) {
+      logEl.innerHTML = '<div class="empty">No signals yet today</div>';
+    } else {
+      logEl.innerHTML = data.signals.slice(0, 10).map(s => {
+        const time = new Date(s.timestamp).toLocaleTimeString('en-US', { hour:'2-digit', minute:'2-digit', hour12:false });
+        const color = s.direction === 'call' ? 'var(--green)' : 'var(--red)';
+        const orders = s.orders?.length ? ` · ${s.orders.length} order(s)` : '';
+        return `<div class="stars-log-row">
+          <span style="color:${color};font-weight:700">${s.direction.toUpperCase()} ★</span>
+          <span style="color:var(--text3)"> ${time} · </span>
+          <span>Score ${s.score.toFixed(1)} · $${s.price.toFixed(2)} · ${s.withTrend ? 'WITH trend' : 'COUNTER trend'}${orders}</span>
+        </div>`;
+      }).join('');
+    }
+  }
+}
+
+// Auto-refresh stars tab every 30s
+setInterval(() => {
+  if (document.getElementById('tab-stars-content').classList.contains('active')) {
+    refreshStars();
+  }
+}, 30000);
 
 loadConfig();
 
