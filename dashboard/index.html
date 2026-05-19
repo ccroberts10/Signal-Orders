@@ -726,6 +726,7 @@
     <div class="metric"><div class="metric-label">Today orders</div><div class="metric-value" id="m-orders">–</div></div>
   </div>
 
+<div class="tab-content active" id="tab-main-content">
   <!-- Watchlist + Positions -->
   <div class="two-col">
 
@@ -741,54 +742,7 @@
     </div>
 
 
-    <!-- Tab wrapper -->
-    <div class="tab-content" id="tab-stars-content">
 
-    <!-- Stars Scanner -->
-    <div class="card">
-      <div class="card-header">
-        <span class="card-title">★ Reversal Stars — SPY</span>
-        <span id="stars-last-scan" style="font-family:var(--mono);font-size:9px;color:var(--text3)">–</span>
-      </div>
-      <div class="card-body">
-        <div style="display:flex;gap:8px;margin-bottom:10px;align-items:center;">
-          <button class="stars-scan-btn" style="margin:0;flex:1" onclick="starsScanNow()">▶ Scan Now</button>
-          <div style="font-family:var(--mono);font-size:10px;color:var(--text3);text-align:right;white-space:nowrap;">
-            PDT <span id="stars-weekly-trades" style="color:var(--text1);font-weight:700">0</span>/<span id="stars-weekly-max">3</span> this week
-          </div>
-        </div>
-
-        <!-- Signal bar -->
-        <div class="stars-signal-bar none" id="stars-signal-bar">No signal — monitoring</div>
-
-        <!-- Scores -->
-        <div class="stars-score-row">
-          <div class="stars-score-box">
-            <div class="stars-score-label">★ CALL Score</div>
-            <div class="stars-score-value call low" id="stars-call-score">–</div>
-          </div>
-          <div class="stars-score-box">
-            <div class="stars-score-label">★ PUT Score</div>
-            <div class="stars-score-value put low" id="stars-put-score">–</div>
-          </div>
-        </div>
-
-        <!-- Market context -->
-        <div class="stars-meta" id="stars-meta"></div>
-
-        <!-- Conditions grid -->
-        <div style="font-family:var(--mono);font-size:9px;color:var(--text3);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.06em;">Active Setup Conditions</div>
-        <div class="stars-conditions" id="stars-conditions"></div>
-
-        <!-- Signal log -->
-        <div style="font-family:var(--mono);font-size:9px;color:var(--text3);margin:14px 0 6px;text-transform:uppercase;letter-spacing:0.06em;">Signal Log</div>
-        <div id="stars-log"><div class="empty">No signals yet today</div></div>
-      </div>
-    </div>
-
-    </div><!-- end stars tab -->
-
-    <div class="tab-content active" id="tab-main-content">
 
     <!-- Performance Chart -->
     <div class="card chart-card">
@@ -917,6 +871,54 @@
     </div>
 
   </div>
+</div><!-- end main tab -->
+
+<!-- Tab wrapper -->
+    <div class="tab-content" id="tab-stars-content">
+
+    <!-- Stars Scanner -->
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">★ Reversal Stars — SPY</span>
+        <span id="stars-last-scan" style="font-family:var(--mono);font-size:9px;color:var(--text3)">–</span>
+      </div>
+      <div class="card-body">
+        <div style="display:flex;gap:8px;margin-bottom:10px;align-items:center;">
+          <button class="stars-scan-btn" style="margin:0;flex:1" onclick="starsScanNow()">▶ Scan Now</button>
+          <div style="font-family:var(--mono);font-size:10px;color:var(--text3);text-align:right;white-space:nowrap;">
+            PDT <span id="stars-weekly-trades" style="color:var(--text1);font-weight:700">0</span>/<span id="stars-weekly-max">3</span> this week
+          </div>
+        </div>
+
+        <!-- Signal bar -->
+        <div class="stars-signal-bar none" id="stars-signal-bar">No signal — monitoring</div>
+
+        <!-- Scores -->
+        <div class="stars-score-row">
+          <div class="stars-score-box">
+            <div class="stars-score-label">★ CALL Score</div>
+            <div class="stars-score-value call low" id="stars-call-score">–</div>
+          </div>
+          <div class="stars-score-box">
+            <div class="stars-score-label">★ PUT Score</div>
+            <div class="stars-score-value put low" id="stars-put-score">–</div>
+          </div>
+        </div>
+
+        <!-- Market context -->
+        <div class="stars-meta" id="stars-meta"></div>
+
+        <!-- Conditions grid -->
+        <div style="font-family:var(--mono);font-size:9px;color:var(--text3);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.06em;">Active Setup Conditions</div>
+        <div class="stars-conditions" id="stars-conditions"></div>
+
+        <!-- Signal log -->
+        <div style="font-family:var(--mono);font-size:9px;color:var(--text3);margin:14px 0 6px;text-transform:uppercase;letter-spacing:0.06em;">Signal Log</div>
+        <div id="stars-log"><div class="empty">No signals yet today</div></div>
+      </div>
+    </div>
+
+    </div><!-- end stars tab -->
 
 </main>
 
