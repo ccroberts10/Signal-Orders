@@ -701,8 +701,8 @@
     </span>
     <span class="last-updated" id="last-updated">–</span>
     <button class="refresh-btn" onclick="refresh()">↻ Refresh</button>
-      <button class="tab-btn" id="tab-main" onclick="setTab('main')">SIGNAL</button>
-      <button class="tab-btn active" id="tab-stars" onclick="setTab('stars')">★ STARS</button>
+      <button class="tab-btn active" id="tab-main" onclick="setTab('main')">SIGNAL</button>
+      <button class="tab-btn" id="tab-stars" onclick="setTab('stars')">★ STARS</button>
     <button class="refresh-btn" onclick="openSettings()" style="border-color: var(--border);">Settings</button>
   </div>
 </header>
@@ -742,7 +742,7 @@
 
 
     <!-- Tab wrapper -->
-    <div class="tab-content active" id="tab-stars-content">
+    <div class="tab-content" id="tab-stars-content">
 
     <!-- Stars Scanner -->
     <div class="card">
@@ -788,7 +788,7 @@
 
     </div><!-- end stars tab -->
 
-    <div class="tab-content" id="tab-main-content">
+    <div class="tab-content active" id="tab-main-content">
 
     <!-- Performance Chart -->
     <div class="card chart-card">
@@ -1182,8 +1182,9 @@ function renderConfig(status) {
   document.getElementById('cfg-paper').className = 'config-val ' + (isPaper ? 'paper' : 'on');
   document.getElementById('cfg-buy').textContent = status.config?.buyThreshold ?? '75';
   document.getElementById('cfg-sell').textContent = status.config?.sellThreshold ?? '35';
-  document.getElementById('cfg-opts').textContent = status.config?.enableOptions ? 'true' : 'false';
-  document.getElementById('cfg-opts').className = 'config-val ' + (status.config?.enableOptions ? 'on' : 'off');
+  const optsEnabled = status.config?.enableOptions || status.config?.optionsEnabled;
+  document.getElementById('cfg-opts').textContent = optsEnabled ? 'true' : 'false';
+  document.getElementById('cfg-opts').className = 'config-val ' + (optsEnabled ? 'on' : 'off');
   document.getElementById('cfg-maxpos').textContent = ((status.config?.maxPositionPct || 0.15) * 100).toFixed(0) + '%';
   document.getElementById('cfg-dloss').textContent = ((status.config?.dailyLossLimitPct || 0.03) * 100).toFixed(0) + '%';
 }
