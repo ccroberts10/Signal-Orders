@@ -106,7 +106,7 @@ const DEFAULT_CONFIG = {
   takeProfitScoreDrop: 60,     // Sell if up 10%+ AND score drops below 60
 
   // Options
-  enableOptions:      false,
+  enableOptions:      process.env.OPTIONS_ENABLED === 'true',
   defaultOptionsDTE:  30,
   defaultOptionsDelta: 0.30,
 
