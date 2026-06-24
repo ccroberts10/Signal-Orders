@@ -67,6 +67,24 @@ async function runPoll() {
 
   console.log('[ORDER-MGR] Polled SIGNAL —', Object.keys(scores).length, 'scores');
 
+  // ── Force exit check on ALL open positions regardless of score ───────────
+  // This ensures trailing stops fire even when SIGNAL doesn't score a ticker
+  try {
+    const om        = getOM();
+    const positions = await om.broker.getAllPositions();
+    for (const pos of positions) {
+      const sym   = pos.symbol;
+      const score = scores[sym] ?? 50; // use neutral score if no signal — won't trigger score sell
+      const exitCheck = await om.checkExitRules(sym, score, pos);
+      if (exitCheck.shouldExit) {
+        console.log(`[ORDER-MGR] FORCED EXIT ${sym}: ${exitCheck.reason}`);
+        await om._executeSell(sym, score, meta[sym] || {}, exitCheck.exitType);
+      }
+    }
+  } catch (e) {
+    console.warn('[ORDER-MGR] Forced exit check failed:', e.message);
+  }
+
   // ── Equity decisions ─────────────────────────────────────────────────────
   const equityResults = await getOM().evaluateAll(scores, meta);
 
