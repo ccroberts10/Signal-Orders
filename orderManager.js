@@ -737,20 +737,32 @@ class OrderManager extends EventEmitter {
         return { action: 'SKIP', ticker, reason: 'no_position' };
       }
 
-      const qty        = parseInt(position.qty);
-      const { bid }    = await this.getValidatedQuote(ticker);
-      const limitPrice = this.config.defaultOrderType === 'limit'
-        ? parseFloat((bid * (1 - this.config.limitSlippagePct)).toFixed(2))
-        : null;
+      const qtyRaw     = parseFloat(position.qty);
+      const isFractional = qtyRaw % 1 !== 0;
 
-      const orderParams = {
-        symbol:        ticker,
-        qty:           qty.toString(),
-        side:          'sell',
-        type:          this.config.defaultOrderType,
-        time_in_force: 'day',
-        ...(limitPrice && { limit_price: limitPrice.toString() }),
-      };
+      // Fractional shares MUST use market orders and notional — Alpaca requirement
+      let orderParams;
+      if (isFractional) {
+        orderParams = {
+          symbol:        ticker,
+          qty:           qtyRaw.toString(),
+          side:          'sell',
+          type:          'market',
+          time_in_force: 'day',
+        };
+      } else {
+        const qty        = parseInt(position.qty);
+        const { bid }    = await this.getValidatedQuote(ticker);
+        const limitPrice = parseFloat((bid * (1 - this.config.limitSlippagePct)).toFixed(2));
+        orderParams = {
+          symbol:        ticker,
+          qty:           qty.toString(),
+          side:          'sell',
+          type:          'limit',
+          time_in_force: 'day',
+          limit_price:   limitPrice.toString(),
+        };
+      }
 
       this.logger.info('Submitting sell order', { ticker, qty, limitPrice, exitType });
       const order    = await this.broker.submitOrder(orderParams);
