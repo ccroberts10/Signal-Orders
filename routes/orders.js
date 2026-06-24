@@ -65,6 +65,16 @@ async function runPoll() {
     }
   });
 
+  // Dynamically sync watchlist from SIGNAL results — no manual matching needed
+  const signalTickers = Object.keys(scores);
+  if (signalTickers.length > 0) {
+    const om = getOM();
+    const noBuy = om.config.noBuyList || [];
+    // Merge: keep any tickers already in watchlist + add new ones from SIGNAL
+    const merged = [...new Set([...signalTickers])];
+    om.config.watchlist = merged;
+  }
+
   console.log('[ORDER-MGR] Polled SIGNAL —', Object.keys(scores).length, 'scores');
 
   // ── Force exit check on ALL open positions regardless of score ───────────
