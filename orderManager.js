@@ -22,10 +22,13 @@ const PEAKS_FILE = process.env.PEAKS_FILE || '/data/peaks.json';
 
 function loadPeaks() {
   try {
+    console.log('[ORDER-MGR] Looking for peaks file at:', PEAKS_FILE);
     if (fs.existsSync(PEAKS_FILE)) {
       const data = JSON.parse(fs.readFileSync(PEAKS_FILE, 'utf8'));
-      console.log('[ORDER-MGR] Loaded peak prices:', JSON.stringify(data));
+      console.log('[ORDER-MGR] ✓ Loaded peak prices from disk:', JSON.stringify(data));
       return data;
+    } else {
+      console.warn('[ORDER-MGR] ✗ Peaks file not found at', PEAKS_FILE, '— starting fresh');
     }
   } catch (e) {
     console.warn('[ORDER-MGR] Could not load peak prices:', e.message);
@@ -36,12 +39,18 @@ function loadPeaks() {
 function savePeaks(peaks) {
   try {
     const dir = path.dirname(PEAKS_FILE);
-    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+      console.log('[ORDER-MGR] Created directory:', dir);
+    }
     fs.writeFileSync(PEAKS_FILE, JSON.stringify(peaks, null, 2));
+    console.log('[ORDER-MGR] ✓ Saved peaks to disk:', PEAKS_FILE);
   } catch (e) {
     console.warn('[ORDER-MGR] Could not save peak prices:', e.message);
   }
 }
+
+
 
 // ─── Config ───────────────────────────────────────────────────────────────────
 
@@ -400,10 +409,19 @@ class OrderManager extends EventEmitter {
         const price = parseFloat(pos.current_price);
         const entry = parseFloat(pos.avg_entry_price);
         if (!this.positionPeaks[sym]) {
-          // Missing peak — seed with current price (conservative — won't trigger stop immediately)
-          this.positionPeaks[sym] = { peakPrice: price, entryPrice: entry, entryDate: new Date().toISOString() };
-          this.logger.warn(`Peak seeded for ${sym} at $${price.toFixed(2)} (restart recovery)`);
+          // Missing peak — use the HIGHER of current price or entry price
+          // This prevents stops from being too loose after a restart
+          const seedPrice = Math.max(price, entry);
+          this.positionPeaks[sym] = { peakPrice: seedPrice, entryPrice: entry, entryDate: new Date().toISOString() };
+          this.logger.warn(`Peak seeded for ${sym} at $${seedPrice.toFixed(2)} (restart recovery — current: $${price.toFixed(2)}, entry: $${entry.toFixed(2)})`);
           changed = true;
+        } else {
+          // Peak exists from file — verify it's not lower than current price
+          if (price > this.positionPeaks[sym].peakPrice) {
+            this.positionPeaks[sym].peakPrice = price;
+            changed = true;
+          }
+          this.logger.info(`Peak loaded for ${sym}: $${this.positionPeaks[sym].peakPrice.toFixed(2)} (current: $${price.toFixed(2)})`);
         }
       }
       // Remove peaks for positions that no longer exist
