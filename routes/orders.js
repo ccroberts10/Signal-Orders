@@ -193,7 +193,6 @@ router.post('/sell/:symbol', async (req, res) => {
 
     const order = await om.broker.submitOrder(orderParams);
     delete om.positionPeaks[symbol];
-    const { savePeaks } = require('../orderManager');
     console.log(`[ORDER-MGR] Manual sell: ${symbol} ${qty} shares @ market`);
     res.json({ success: true, symbol, qty, orderId: order.id });
   } catch (e) {
